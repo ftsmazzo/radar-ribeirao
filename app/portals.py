@@ -183,13 +183,12 @@ def _has_any(blob: str, markers: tuple[str, ...]) -> bool:
 def classify(title: str, summary: str, *, local_feed: bool = False) -> dict:
     """Classifica manchete para a fila da assessoria.
 
-    Feeds locais (G1 Ribeirão, CBN etc.) quase nunca repetem o nome da cidade —
-    por isso local_feed assume contexto municipal, sem liberar esporte/entretenimento.
+    Só entra em Prefeitura com órgão/serviço municipal explícito.
+    Feed local NÃO basta: acidente, feira e polícia ficam em Geral/Cidade.
     """
     blob = _fold(f"{title} {summary}")
     strong_city = _has_any(blob, STRONG_CITY_MARKERS)
     neighborhood = _has_any(blob, NEIGHBORHOOD_MARKERS)
-    city = strong_city or neighborhood or local_feed
     local_org = _has_any(blob, LOCAL_ORG_MARKERS)
     service = (
         local_org
@@ -198,20 +197,26 @@ def classify(title: str, summary: str, *, local_feed: bool = False) -> dict:
         or (strong_city and "prefeitura" in blob)
     )
     noise = _has_any(blob, NOISE_MARKERS)
+    # Contexto geográfico: feed local ajuda serviço, mas sozinho não vira fila.
+    municipal_context = local_feed or strong_city or neighborhood
 
-    # Esporte/entretenimento fora da fila — mesmo em feed local.
-    if noise and not local_org:
+    if noise and not local_org and not (service and municipal_context):
         tag = "ruido"
         label = "Fora do escopo"
         priority = "baixa"
-    elif local_org or (service and city):
+    elif local_org or (service and municipal_context):
         tag = "prefeitura"
         label = "Prefeitura / serviço"
         priority = "alta"
-    elif city:
+    elif strong_city or neighborhood:
+        # Cidade citada, sem serviço municipal — fora da fila padrão.
         tag = "cidade"
-        label = "Fala da cidade"
-        priority = "media"
+        label = "Cidade (sem serviço)"
+        priority = "baixa"
+    elif local_feed:
+        tag = "geral"
+        label = "Cobertura local"
+        priority = "baixa"
     else:
         tag = "geral"
         label = "Geral / região"
@@ -221,7 +226,7 @@ def classify(title: str, summary: str, *, local_feed: bool = False) -> dict:
         "tag": tag,
         "label": label,
         "priority": priority,
-        "city_hit": bool(city),
+        "city_hit": bool(strong_city or neighborhood or local_feed),
         "service_hit": bool(service),
         "checkable": tag == "prefeitura",
         "reasons": _reasons(strong_city, neighborhood, local_feed, local_org, service, noise),
@@ -413,7 +418,7 @@ def refresh_portals(force: bool = False) -> dict:
             "cidade": sum(1 for i in items if i.get("tag") == "cidade"),
             "geral": sum(1 for i in items if i.get("tag") == "geral"),
             "ruido": sum(1 for i in items if i.get("tag") == "ruido"),
-            "relevantes": sum(1 for i in items if i.get("tag") in {"prefeitura", "cidade"}),
+            "relevantes": sum(1 for i in items if i.get("tag") == "prefeitura"),
             "fila": sum(1 for i in items if i.get("checkable")),
             "ativos": sum(1 for s in sources if s.get("enabled")),
         },
@@ -427,18 +432,17 @@ def refresh_portals(force: bool = False) -> dict:
 def portals_snapshot(force: bool = False, tag: str = "") -> dict:
     data = refresh_portals(force=force)
     items = list(data.get("items") or [])
-    wanted = (tag or "").strip().lower() or "relevantes"
+    # Padrão: só prefeitura/serviço — não “tudo de Ribeirão”.
+    wanted = (tag or "").strip().lower() or "prefeitura"
+    if wanted in {"relevantes", "fila"}:
+        wanted = "prefeitura"
     if wanted in {"prefeitura", "cidade", "geral", "ruido"}:
         items = [item for item in items if item.get("tag") == wanted]
-    elif wanted == "fila":
-        items = [item for item in items if item.get("checkable")]
     elif wanted in {"todos", "all"}:
         wanted = "todos"
-    elif wanted == "relevantes":
-        items = [item for item in items if item.get("tag") in {"prefeitura", "cidade"}]
     else:
-        wanted = "relevantes"
-        items = [item for item in items if item.get("tag") in {"prefeitura", "cidade"}]
+        wanted = "prefeitura"
+        items = [item for item in items if item.get("tag") == "prefeitura"]
     out = dict(data)
     out["items"] = items
     out["filter"] = wanted

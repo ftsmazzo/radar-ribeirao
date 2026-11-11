@@ -294,11 +294,11 @@
     </section>
 
     <section class="stats" aria-label="Resumo" id="stats">
+      <button class="stat hot on" type="button" data-tag="prefeitura"><strong id="n-pref">0</strong><span>Prefeitura</span></button>
+      <button class="stat" type="button" data-tag="cidade"><strong id="n-city">0</strong><span>Cidade (fora da fila)</span></button>
+      <button class="stat" type="button" data-tag="geral"><strong id="n-geral">0</strong><span>Cobertura local</span></button>
+      <button class="stat" type="button" data-tag="ruido"><strong id="n-ruido">0</strong><span>Ruído</span></button>
       <button class="stat" type="button" data-tag="todos"><strong id="n-total">0</strong><span>Todas</span></button>
-      <button class="stat hot on" type="button" data-tag="relevantes"><strong id="n-rel">0</strong><span>Relevantes</span></button>
-      <button class="stat" type="button" data-tag="fila"><strong id="n-fila">0</strong><span>Na fila</span></button>
-      <button class="stat" type="button" data-tag="prefeitura"><strong id="n-pref">0</strong><span>Prefeitura</span></button>
-      <button class="stat ok" type="button" data-tag="cidade"><strong id="n-city">0</strong><span>Cidade</span></button>
     </section>
 
     <section>
@@ -307,18 +307,16 @@
     </section>
 
     <p class="selection-hint" id="selection-hint">
-      Filtro ativo: <strong>Relevantes</strong> — só cidade e serviço público. Esporte e entretenimento ficam em Ruído.
+      Filtro ativo: <strong>Prefeitura</strong> — só órgão e serviço municipal (SAERP, UPA, RP Mobi, secretarias…). O resto de Ribeirão fica fora.
     </p>
 
     <section class="toolbar">
       <div class="filters" id="filters" role="tablist" aria-label="Filtros de manchetes">
-        <button class="filter-btn" data-tag="todos" type="button" aria-pressed="false">Todos <span class="count" data-count="total">0</span></button>
-        <button class="filter-btn on" data-tag="relevantes" type="button" aria-pressed="true">Relevantes <span class="count" data-count="relevantes">0</span></button>
-        <button class="filter-btn" data-tag="fila" type="button" aria-pressed="false">Na fila <span class="count" data-count="fila">0</span></button>
-        <button class="filter-btn" data-tag="prefeitura" type="button" aria-pressed="false">Prefeitura <span class="count" data-count="prefeitura">0</span></button>
+        <button class="filter-btn on" data-tag="prefeitura" type="button" aria-pressed="true">Prefeitura <span class="count" data-count="prefeitura">0</span></button>
         <button class="filter-btn" data-tag="cidade" type="button" aria-pressed="false">Cidade <span class="count" data-count="cidade">0</span></button>
-        <button class="filter-btn" data-tag="geral" type="button" aria-pressed="false">Geral <span class="count" data-count="geral">0</span></button>
+        <button class="filter-btn" data-tag="geral" type="button" aria-pressed="false">Local <span class="count" data-count="geral">0</span></button>
         <button class="filter-btn" data-tag="ruido" type="button" aria-pressed="false">Ruído <span class="count" data-count="ruido">0</span></button>
+        <button class="filter-btn" data-tag="todos" type="button" aria-pressed="false">Todos <span class="count" data-count="total">0</span></button>
       </div>
       <span class="updated" id="meta-line"></span>
     </section>
@@ -337,15 +335,13 @@
     const chipUpdated = document.getElementById("chip-updated");
     const metaLine = document.getElementById("meta-line");
     const btnRefresh = document.getElementById("btn-refresh");
-    let currentTag = "relevantes";
+    let currentTag = "prefeitura";
     let busy = false;
     const FILTER_HINT = {
       todos: "Filtro ativo: <strong>Todos</strong> — lista completa dos feeds.",
-      relevantes: "Filtro ativo: <strong>Relevantes</strong> — só cidade e serviço público. Esporte e entretenimento ficam em Ruído.",
-      fila: "Filtro ativo: <strong>Na fila</strong> — só manchetes checáveis (prefeitura / serviço).",
-      prefeitura: "Filtro ativo: <strong>Prefeitura</strong> — menções a serviço ou órgão municipal.",
-      cidade: "Filtro ativo: <strong>Cidade</strong> — fala local sem serviço explícito.",
-      geral: "Filtro ativo: <strong>Geral</strong> — região sem encaixe claro.",
+      prefeitura: "Filtro ativo: <strong>Prefeitura</strong> — só órgão e serviço municipal (SAERP, UPA, RP Mobi, secretarias…). O resto de Ribeirão fica fora.",
+      cidade: "Filtro ativo: <strong>Cidade</strong> — cita Ribeirão, mas sem serviço municipal. Fora da fila de checagem.",
+      geral: "Filtro ativo: <strong>Local</strong> — cobertura do feed sem serviço público explícito.",
       ruido: "Filtro ativo: <strong>Ruído</strong> — esporte, entretenimento e fora do escopo."
     };
 
@@ -358,7 +354,7 @@
     }
 
     function setFilter(tag, reload = true) {
-      currentTag = tag || "relevantes";
+      currentTag = tag || "prefeitura";
       document.querySelectorAll(".filter-btn").forEach((el) => {
         const on = el.dataset.tag === currentTag;
         el.classList.toggle("on", on);
@@ -368,7 +364,7 @@
         el.classList.toggle("on", el.dataset.tag === currentTag);
       });
       const hint = document.getElementById("selection-hint");
-      if (hint) hint.innerHTML = FILTER_HINT[currentTag] || FILTER_HINT.relevantes;
+      if (hint) hint.innerHTML = FILTER_HINT[currentTag] || FILTER_HINT.prefeitura;
       if (reload) load(false);
     }
 
@@ -445,10 +441,10 @@
         const data = await res.json();
         const c = data.counts || {};
         document.getElementById("n-total").textContent = c.total || 0;
-        document.getElementById("n-rel").textContent = c.relevantes || 0;
-        document.getElementById("n-fila").textContent = c.fila || 0;
         document.getElementById("n-pref").textContent = c.prefeitura || 0;
         document.getElementById("n-city").textContent = c.cidade || 0;
+        document.getElementById("n-geral").textContent = c.geral || 0;
+        document.getElementById("n-ruido").textContent = c.ruido || 0;
         document.querySelectorAll("[data-count]").forEach((el) => {
           const key = el.dataset.count;
           el.textContent = c[key] ?? 0;
@@ -476,13 +472,13 @@
     document.getElementById("filters").addEventListener("click", (ev) => {
       const btn = ev.target.closest("button[data-tag]");
       if (!btn) return;
-      setFilter(btn.dataset.tag || "relevantes", true);
+      setFilter(btn.dataset.tag || "prefeitura", true);
     });
 
     document.getElementById("stats").addEventListener("click", (ev) => {
       const btn = ev.target.closest("button[data-tag]");
       if (!btn) return;
-      setFilter(btn.dataset.tag || "relevantes", true);
+      setFilter(btn.dataset.tag || "prefeitura", true);
     });
 
     btnRefresh.addEventListener("click", () => load(true));
