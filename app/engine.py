@@ -37,7 +37,7 @@ def status_snapshot() -> dict:
     programa = load_programa()
     with session() as db:
         state = db.get(RunState, 1)
-        segments = list(db.scalars(select(Segment).order_by(Segment.id.asc()).limit(80)))
+        segments = list(db.scalars(select(Segment).order_by(Segment.id.desc()).limit(80)))
         cases = list(db.scalars(select(Case).order_by(Case.id.desc()).limit(20)))
         notices = list(db.scalars(select(Notice).order_by(Notice.id.desc()).limit(20)))
         live_web = bool(settings.openrouter_key)
@@ -251,13 +251,13 @@ def _process_claim(claim: dict, run_id: int) -> None:
         row.sources_json = json.dumps(verdict.get("sources") or [], ensure_ascii=False)
         label = STAMP_LABEL.get(row.status, row.status)
         priority = verdict.get("response_priority") or "media"
-        title = f"[{label}] {quote[:90]}"
-        body = (
-            f"Prioridade: {priority}\n"
-            f"Precisa resposta: {'sim' if row.needs_response else 'não'}\n\n"
-            f"{row.note}\n\n"
-            f"Resumo: {row.summary}"
-        )
+        subject = ""
+        for line in (row.note or "").splitlines():
+            if line.casefold().startswith("assunto:"):
+                subject = line.split(":", 1)[1].strip()
+                break
+        title = f"[{label} · {priority}] {subject or quote[:80]}"
+        body = (row.note or row.summary or "").strip()
         db.add(
             Notice(
                 case_id=row.id,

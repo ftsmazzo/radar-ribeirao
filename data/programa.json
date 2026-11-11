@@ -1,7 +1,7 @@
 {
   "title": "Cidade em Debate — Rádio Centro AM (simulação)",
   "station": "Rádio Centro AM · Ribeirão Preto",
-  "disclaimer": "Roteiro fictício para demonstração. As fontes oficiais usadas na checagem são reais.",
+  "disclaimer": "Roteiro fictício para demonstração. As fontes oficiais usadas na checagem são reais. Fala fora do município ou sem fato checável aparece na escuta e não vira caso.",
   "lines": [
     {
       "t": 0,
@@ -9,12 +9,17 @@
       "text": "Boa tarde. No Cidade em Debate de hoje a gente abre o microfone para o ouvinte falar dos serviços públicos de Ribeirão Preto."
     },
     {
-      "t": 4,
+      "t": 3,
+      "speaker": "Apresentador",
+      "text": "Antes, o placar da rodada: o Botafogo venceu por 2 a 1 e o Corinthians empatou em casa. Futebol não é pauta da prefeitura."
+    },
+    {
+      "t": 7,
       "speaker": "Apresentador",
       "text": "Primeiro recado: João, do Jardim Paulista, mandou mensagem. Ele diz que na cidade não existe atendimento de saúde depois das cinco da tarde."
     },
     {
-      "t": 10,
+      "t": 12,
       "speaker": "Ouvinte",
       "text": "É isso. Em Ribeirão Preto não tem posto de saúde depois das 17 horas. Se precisar de médico à noite, não tem para onde ir.",
       "claim": {
@@ -25,12 +30,17 @@
       }
     },
     {
-      "t": 18,
+      "t": 20,
+      "speaker": "Comentarista",
+      "text": "Mudando de assunto: em São Paulo capital o Metrô anunciou obra noturna na linha vermelha. Isso é outra cidade, outra gestão."
+    },
+    {
+      "t": 25,
       "speaker": "Apresentador",
       "text": "Outra queixa chegou sobre água. A ouvinte Carla afirma que a SAERP não tem telefone 24 horas para vazamento."
     },
     {
-      "t": 24,
+      "t": 30,
       "speaker": "Ouvinte",
       "text": "Vazou água a madrugada inteira na minha rua e não tem canal 24 horas da SAERP. A prefeitura abandonou quem precisa de água de madrugada.",
       "claim": {
@@ -41,12 +51,17 @@
       }
     },
     {
-      "t": 32,
+      "t": 38,
+      "speaker": "Apresentador",
+      "text": "Previsão do tempo para o interior: chuva isolada à noite e amanhecer nublado. Sem relação com serviço municipal."
+    },
+    {
+      "t": 42,
       "speaker": "Apresentador",
       "text": "No transporte, o comentarista Marcos diz que o passageiro não consegue saber horário do ônibus em tempo real."
     },
     {
-      "t": 38,
+      "t": 47,
       "speaker": "Comentarista",
       "text": "O ônibus em Ribeirão é no escuro: não existe forma de consultar o horário em tempo real. O cidadão fica no ponto sem informação.",
       "claim": {
@@ -57,12 +72,17 @@
       }
     },
     {
-      "t": 46,
+      "t": 55,
+      "speaker": "Ouvinte",
+      "text": "Eu acho que a prefeitura poderia ser mais simpática no atendimento. É opinião minha, não estou falando de horário nem de serviço específico."
+    },
+    {
+      "t": 60,
       "speaker": "Apresentador",
       "text": "E tem um ponto que bate com o site da prefeitura: a coleta seletiva porta a porta ocorre uma vez por semana na área urbana."
     },
     {
-      "t": 52,
+      "t": 65,
       "speaker": "Apresentador",
       "text": "A coleta seletiva porta a porta em Ribeirão Preto acontece uma vez por semana em toda a área urbana.",
       "claim": {
@@ -73,9 +93,9 @@
       }
     },
     {
-      "t": 60,
+      "t": 72,
       "speaker": "Apresentador",
-      "text": "Aguarde: a assessoria da prefeitura já pode estar recebendo estes alertas com fonte e nota pronta. Voltamos depois do intervalo."
+      "text": "No intervalo tem sorteio de ingresso e o bloco comercial. Voltamos com mais ouvintes."
     }
   ]
 }

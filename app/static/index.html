@@ -7,6 +7,67 @@
   <title>Radar Municipal · Ribeirão Preto</title>
   <link rel="icon" type="image/png" href="/static/logo-ie-icon.png">
   <link rel="stylesheet" href="/static/shell.css">
+  <style>
+    .grid-ops {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .press-panel {
+      border-color: var(--coral);
+      background:
+        linear-gradient(90deg, rgba(241,93,90,0.10), transparent 40%),
+        linear-gradient(180deg, rgba(22,22,22,0.96), rgba(18,18,18,0.98));
+    }
+    .press-panel h2 { color: var(--coral); }
+    .press-help {
+      margin: 0 0 14px;
+      color: var(--ink-soft);
+      max-width: 72ch;
+    }
+    .notice-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .notice-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .notice-actions button {
+      min-height: 36px;
+      font-size: 0.68rem;
+      padding: 0 12px;
+    }
+    .status-pill {
+      font-family: "Archivo Black", sans-serif;
+      font-size: 0.66rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--mark);
+      border: 1px solid var(--mark);
+      padding: 4px 8px;
+    }
+    .case .note-ready {
+      border: 1px solid var(--line);
+      background: rgba(0,0,0,0.28);
+      padding: 12px;
+      white-space: pre-wrap;
+      color: var(--ink-soft);
+      font-size: 0.95rem;
+    }
+    .case .note-label {
+      font-family: "Archivo Black", sans-serif;
+      font-size: 0.66rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--coral);
+      margin: 4px 0 0;
+    }
+    @media (max-width: 980px) {
+      .grid-ops { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 <body>
   <header class="top">
@@ -28,8 +89,8 @@
       <div>
         <h1>A cidade fala. A prefeitura responde com fonte.</h1>
         <p>
-          Escuta o programa, detecta afirmação sobre serviço público, cruza a base oficial
-          e a web, escreve nota sóbria e alerta a imprensa do município.
+          Escuta o programa, separa o que é fato municipal do ruído, cruza base oficial e web,
+          escreve a nota pronta e entrega na caixa da assessoria.
         </p>
       </div>
       <div class="hero-side">
@@ -48,35 +109,45 @@
     </section>
 
     <section class="pipeline" aria-label="Fluxo">
-      <div class="step" data-step="ouvindo"><strong>1. Ouve</strong><span>transcrição</span></div>
-      <div class="step" data-step="detectou"><strong>2. Detecta</strong><span>afirmação</span></div>
+      <div class="step" data-step="ouvindo"><strong>1. Ouve</strong><span>tudo que entra</span></div>
+      <div class="step" data-step="detectou"><strong>2. Filtra</strong><span>só fato municipal</span></div>
       <div class="step" data-step="checando"><strong>3. Cruza</strong><span>KB + web</span></div>
-      <div class="step" data-step="nota"><strong>4. Nota</strong><span>crise sóbria</span></div>
-      <div class="step" data-step="notificando"><strong>5. Alerta</strong><span>imprensa</span></div>
+      <div class="step" data-step="nota"><strong>4. Redige</strong><span>nota pronta</span></div>
+      <div class="step" data-step="notificando"><strong>5. Entrega</strong><span>caixa da assessoria</span></div>
       <div class="step" data-step="concluido"><strong>6. Arquivo</strong><span>caso fechado</span></div>
     </section>
 
-    <section class="grid">
+    <section class="grid-ops">
       <div class="panel">
-        <h2>Programa ao vivo · simulação</h2>
+        <h2>Escuta ao vivo · mais novo em cima</h2>
         <p id="programa-meta" class="footer-note" style="margin-top:0"></p>
         <div class="feed" id="feed"></div>
       </div>
 
       <div class="panel">
-        <h2>Casos &amp; carimbos</h2>
+        <h2>Casos &amp; carimbos · mais novo em cima</h2>
+        <p class="footer-note" style="margin-top:0">
+          Só entra aqui afirmação checável sobre serviço de Ribeirão Preto.
+          Futebol, tempo, outra cidade e opinião pura ficam só na escuta.
+        </p>
         <div class="feed" id="cases"></div>
       </div>
+    </section>
 
-      <div class="panel">
-        <h2>Sala de imprensa</h2>
-        <div class="feed" id="notices"></div>
-      </div>
+    <section class="panel press-panel" id="sala-imprensa">
+      <h2>Sala de Imprensa · caixa da assessoria</h2>
+      <p class="press-help">
+        Aqui chega o alerta operacional da Coordenadoria de Comunicação:
+        carimbo, prioridade e a <strong>nota pronta para enviar</strong>.
+        Na prática, a assessora valida o texto e dispara para o veículo.
+        Nesta demo, a entrega é nesta caixa (o WhatsApp/e-mail entra depois).
+      </p>
+      <div class="feed" id="notices"></div>
+    </section>
 
-      <div class="panel">
-        <h2>Fontes oficiais em uso</h2>
-        <div class="sources" id="sources"></div>
-      </div>
+    <section class="panel" style="margin-top:18px">
+      <h2>Fontes oficiais usadas nos casos</h2>
+      <div class="sources" id="sources"></div>
     </section>
 
     <p class="footer-note" id="disclaimer"></p>
@@ -121,6 +192,7 @@
     let noticesSig = "";
     let sourcesSig = "";
     let phaseSig = "";
+    let knownSegIds = new Set();
 
     function stampClass(status) {
       if (BAD.has(status)) return "stamp bad";
@@ -162,19 +234,38 @@
     function renderSegments(rows) {
       if (!rows.length) {
         feed.innerHTML = '<div class="empty">Aguardando o início do programa…</div>';
+        knownSegIds = new Set();
         lastSeg = 0;
         return;
       }
-      const fresh = rows.filter((r) => r.id > lastSeg);
-      if (!lastSeg) feed.innerHTML = "";
-      for (const row of (lastSeg ? fresh : rows)) {
+      const newestFirst = rows;
+      if (!knownSegIds.size) {
+        feed.innerHTML = "";
+        for (const row of newestFirst) {
+          const div = document.createElement("div");
+          div.className = "line";
+          div.dataset.id = row.id;
+          div.innerHTML = `<div class="who">${esc(row.speaker)}</div><p>${esc(row.text)}</p>`;
+          feed.appendChild(div);
+          knownSegIds.add(row.id);
+          lastSeg = Math.max(lastSeg, row.id);
+        }
+        feed.scrollTop = 0;
+        return;
+      }
+      const fresh = newestFirst.filter((r) => !knownSegIds.has(r.id)).reverse();
+      for (const row of fresh) {
+        const empty = feed.querySelector(".empty");
+        if (empty) empty.remove();
         const div = document.createElement("div");
         div.className = "line";
+        div.dataset.id = row.id;
         div.innerHTML = `<div class="who">${esc(row.speaker)}</div><p>${esc(row.text)}</p>`;
-        feed.appendChild(div);
+        feed.prepend(div);
+        knownSegIds.add(row.id);
         lastSeg = Math.max(lastSeg, row.id);
       }
-      feed.scrollTop = feed.scrollHeight;
+      if (fresh.length) feed.scrollTop = 0;
     }
 
     function caseCard(c, animate) {
@@ -191,12 +282,13 @@
         <div class="meta">
           <span>${esc(c.theme || "tema")}</span>
           <span>${c.needs_response ? "precisa resposta" : "só ciência"}</span>
-          <span>${c.notified ? "imprensa alertada" : "fila"}</span>
+          <span>${c.notified ? "na caixa da assessoria" : "fila"}</span>
           <span>${Math.round((c.confidence || 0) * 100)}%</span>
         </div>
         <div>${pipes}</div>
         <p class="note">${esc(c.summary)}</p>
-        <p class="note">${esc(c.note)}</p>
+        <p class="note-label">Nota pronta · validar e enviar</p>
+        <pre class="note-ready">${esc(c.note)}</pre>
         <div class="sources">${src || '<div class="empty">Sem URL https neste caso.</div>'}</div>
       </article>`;
     }
@@ -211,13 +303,13 @@
         [...casesEl.querySelectorAll(".case[data-id]")].map((el) => el.dataset.id)
       );
       if (!rows.length) {
-        casesEl.innerHTML = '<div class="empty">Nenhum caso ainda. As afirmações entram aqui.</div>';
+        casesEl.innerHTML = '<div class="empty">Nenhum caso ainda. As afirmações municipais entram aqui.</div>';
         casesSig = next;
         lastCase = 0;
         return;
       }
-      const ordered = [...rows].reverse();
-      casesEl.innerHTML = ordered.map((c) =>
+      // API já vem do mais novo para o mais antigo.
+      casesEl.innerHTML = rows.map((c) =>
         caseCard(c, !prevIds.has(String(c.id)))
       ).join("");
       casesSig = next;
@@ -228,15 +320,44 @@
       const next = sig(rows.map((n) => [n.id, n.title, n.body]));
       if (next === noticesSig) return;
       if (!rows.length) {
-        noticesEl.innerHTML = '<div class="empty">A sala de imprensa ainda está vazia.</div>';
+        noticesEl.innerHTML = '<div class="empty">A caixa da assessoria ainda está vazia. Quando um caso fecha, a nota aparece aqui.</div>';
         noticesSig = next;
         return;
       }
       noticesEl.innerHTML = rows.map((n) =>
-        `<article class="notice"><strong>${esc(n.title)}</strong><p>${esc(n.body)}</p></article>`
+        `<article class="notice" data-id="${n.id}">
+          <div class="notice-head">
+            <div>
+              <strong>${esc(n.title)}</strong>
+              <div style="margin-top:8px"><span class="status-pill">Aguardando validação</span></div>
+            </div>
+            <div class="notice-actions">
+              <button type="button" data-copy="${n.id}">Copiar nota</button>
+            </div>
+          </div>
+          <p>${esc(n.body)}</p>
+        </article>`
       ).join("");
       noticesSig = next;
+      if (rows[0] && rows[0].id !== lastNotice) {
+        lastNotice = rows[0].id;
+        document.getElementById("sala-imprensa")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
     }
+
+    noticesEl.addEventListener("click", async (ev) => {
+      const btn = ev.target.closest("button[data-copy]");
+      if (!btn) return;
+      const card = btn.closest(".notice");
+      const text = card?.querySelector("p")?.innerText || "";
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = "Copiado";
+        setTimeout(() => { btn.textContent = "Copiar nota"; }, 1200);
+      } catch (_) {
+        btn.textContent = "Selecione o texto";
+      }
+    });
 
     function renderSources(cases) {
       const map = new Map();
@@ -292,11 +413,12 @@
 
     function wipeUi() {
       lastSeg = 0; lastCase = 0; lastNotice = 0;
+      knownSegIds = new Set();
       seenPhases = new Set();
       casesSig = ""; noticesSig = ""; sourcesSig = ""; phaseSig = "";
       feed.innerHTML = '<div class="empty">Aguardando o início do programa…</div>';
-      casesEl.innerHTML = '<div class="empty">Nenhum caso ainda. As afirmações entram aqui.</div>';
-      noticesEl.innerHTML = '<div class="empty">A sala de imprensa ainda está vazia.</div>';
+      casesEl.innerHTML = '<div class="empty">Nenhum caso ainda. As afirmações municipais entram aqui.</div>';
+      noticesEl.innerHTML = '<div class="empty">A caixa da assessoria ainda está vazia.</div>';
       sourcesEl.innerHTML = '<div class="empty">As URLs oficiais aparecem conforme a checagem avança.</div>';
       document.querySelectorAll(".step").forEach((el) => el.classList.remove("active", "done"));
     }

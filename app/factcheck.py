@@ -60,17 +60,26 @@ Responda SÓ JSON:
   "missing":"o que falta para cravar, ou vazio",
   "needs_response":true,
   "response_priority":"alta|media|baixa|nenhuma",
-  "note":"nota curta para a assessoria, 4 a 7 frases, pronta para adaptar. Cite o que a fonte oficial mostra. Não invente número nem URL.",
+  "note":"NOTA À IMPRENSA pronta para enviar após validação humana. Formato obrigatório abaixo.",
   "theme":"saude|agua|transporte|limpeza|atendimento|outro",
   "sources":[{"title":"...","url":"https://...","kind":"oficial|checagem|imprensa","excerpt":"trecho curto"}]
 }
 
+Formato obrigatório do campo note:
+NOTA À IMPRENSA — Prefeitura de Ribeirão Preto
+Assunto: <uma linha>
+<2 a 4 parágrafos curtos em terceira pessoa, tom institucional, sem bullet de orientação interna>
+Fonte: <título> — <url https>
+Assessoria de Comunicação / Prefeitura Municipal de Ribeirão Preto
+
 Regras:
+- A note NÃO é briefing interno. É o texto que a assessoria poderia colar no WhatsApp/e-mail da imprensa depois de validar.
+- Não escreva 'sugestão', 'recomenda-se', 'orientação' nem 'posicionamento sugerido'.
+- Não use a palavra fake. Não ataque o veículo nem o ouvinte.
 - Carimbo fechado só com URL https nas sources OU com fato da base oficial já listado abaixo (aí repita a URL da base).
 - Se a fala contradiz a base oficial com URL, use contradito ou distorcido.
 - Se a fala confirma a base, use sustentado.
 - needs_response=true quando o conteúdo exige posicionamento público (falso, parcial, distorcido, ou verdadeiro com risco de ruído).
-- A nota não discute adversário político; responde o fato.
 - Prefira portal ribeiraopreto.sp.gov.br, SAERP, RP Mobi e páginas oficiais.
 - Não invente URL. Só use URLs recebidas no contexto ou devolvidas pela busca.
 """
@@ -204,8 +213,25 @@ def sanitize(payload: dict, kb_matches: list[dict]) -> dict:
     if theme not in {"saude", "agua", "transporte", "limpeza", "atendimento", "outro"}:
         theme = (kb_matches[0].get("theme") if kb_matches else "outro") or "outro"
     note = str(payload.get("note") or "").strip()
-    if not note:
-        note = _fallback_note(status, str(payload.get("summary") or ""), kb_matches, sources)
+    quote_hint = str(payload.get("quote") or "")
+    if not note or "sugestão" in note.casefold() or "orientação" in note.casefold():
+        note = _fallback_note(
+            status,
+            str(payload.get("summary") or ""),
+            kb_matches,
+            sources,
+            quote=quote_hint,
+            theme=theme,
+        )
+    if "NOTA À IMPRENSA" not in note.upper():
+        note = _fallback_note(
+            status,
+            str(payload.get("summary") or ""),
+            kb_matches,
+            sources,
+            quote=quote_hint,
+            theme=theme,
+        )
     return {
         "status": status,
         "label": STAMP_LABEL.get(status, status),
@@ -214,26 +240,70 @@ def sanitize(payload: dict, kb_matches: list[dict]) -> dict:
         "missing": str(payload.get("missing") or "")[:300],
         "needs_response": needs,
         "response_priority": priority,
-        "note": note[:1600],
+        "note": note[:2200],
         "theme": theme,
         "sources": sources[:8],
     }
 
 
-def _fallback_note(status: str, summary: str, kb_matches: list[dict], sources: list[dict]) -> str:
-    label = STAMP_LABEL.get(status, status)
-    bits = [
-        f"Carimbo sugerido: {label}.",
-        summary or "Segue leitura factual para a assessoria.",
-    ]
+def _press_subject(status: str, theme: str, quote: str) -> str:
+    theme_label = {
+        "saude": "saúde",
+        "agua": "abastecimento de água",
+        "transporte": "transporte coletivo",
+        "limpeza": "coleta seletiva",
+        "atendimento": "atendimento municipal",
+    }.get(theme, "serviço público")
+    if status in {"contradito", "distorcido", "exagerado", "nao_e_bem_assim"}:
+        return f"Esclarecimento sobre {theme_label}"
+    if status == "sustentado":
+        return f"Informação confirmada sobre {theme_label}"
+    return f"Atualização sobre {theme_label}"
+
+
+def _fallback_note(
+    status: str,
+    summary: str,
+    kb_matches: list[dict],
+    sources: list[dict],
+    quote: str = "",
+    theme: str = "",
+) -> str:
+    detail = ""
     if kb_matches:
-        bits.append(kb_matches[0].get("detail") or kb_matches[0].get("claim") or "")
+        detail = str(kb_matches[0].get("detail") or kb_matches[0].get("claim") or "")
+    source_line = "Fonte: Portal da Prefeitura de Ribeirão Preto"
     if sources:
-        bits.append(f"Fonte principal: {sources[0]['title']} — {sources[0]['url']}")
-    bits.append(
-        "Sugestão: responder com o dado oficial, sem polemizar o veículo, e oferecer canal de atendimento ao munícipe."
+        source_line = f"Fonte: {sources[0]['title']} — {sources[0]['url']}"
+    subject = _press_subject(status, theme or (kb_matches[0].get("theme") if kb_matches else ""), quote)
+    if status in {"contradito", "distorcido", "exagerado", "nao_e_bem_assim"}:
+        body = (
+            f"Em atenção a informações veiculadas sobre o serviço público municipal, "
+            f"a Prefeitura de Ribeirão Preto presta o seguinte esclarecimento.\n\n"
+            f"Foi dito que “{quote}”. {summary} "
+            f"{detail}\n\n"
+            f"A Administração Municipal reforça os canais oficiais de atendimento e permanece "
+            f"à disposição da imprensa e da população para esclarecimentos adicionais."
+        )
+    elif status == "sustentado":
+        body = (
+            f"A Prefeitura de Ribeirão Preto confirma informação divulgada sobre serviço municipal.\n\n"
+            f"Conforme registrado em fonte oficial: {detail or summary}\n\n"
+            f"A Assessoria de Comunicação disponibiliza o link oficial para consulta."
+        )
+    else:
+        body = (
+            f"A Prefeitura de Ribeirão Preto acompanha a menção feita em veículo local e "
+            f"informa que segue apurando os dados disponíveis.\n\n"
+            f"{summary} {detail}"
+        )
+    return (
+        "NOTA À IMPRENSA — Prefeitura de Ribeirão Preto\n"
+        f"Assunto: {subject}\n\n"
+        f"{body.strip()}\n\n"
+        f"{source_line}\n"
+        "Assessoria de Comunicação / Prefeitura Municipal de Ribeirão Preto"
     )
-    return " ".join(bit for bit in bits if bit)
 
 
 def offline_verdict(quote: str, normalized: str, kb_ids: list[str] | None = None) -> dict:
@@ -280,6 +350,7 @@ def offline_verdict(quote: str, normalized: str, kb_ids: list[str] | None = None
         priority = "media"
         summary = "Sem fato suficiente na base local; falta confirmação em fonte https."
 
+    theme = matches[0]["theme"] if matches else "outro"
     payload = {
         "status": status,
         "confidence": 0.82 if sources else 0.35,
@@ -287,20 +358,11 @@ def offline_verdict(quote: str, normalized: str, kb_ids: list[str] | None = None
         "missing": "" if sources else "Ampliar busca em páginas oficiais.",
         "needs_response": needs,
         "response_priority": priority,
-        "theme": matches[0]["theme"] if matches else "outro",
-        "note": "",
+        "theme": theme,
+        "quote": quote,
+        "note": _fallback_note(status, summary, matches, sources, quote=quote, theme=theme),
         "sources": sources,
     }
-    if matches:
-        detail = matches[0].get("detail") or ""
-        payload["note"] = (
-            f"A imprensa/ouvinte afirmou: “{quote}”. "
-            f"Leitura: {summary} "
-            f"Dado oficial: {detail} "
-            f"Posicionamento sugerido: informar o canal e o horário corretos, "
-            f"oferecer o link da página oficial e, se couber, atendimento ao caso concreto do munícipe. "
-            f"Tom sóbrio, sem desqualificar o veículo."
-        )
     return sanitize(payload, matches)
 
 
@@ -325,6 +387,7 @@ def verify_claim(
         )
         try:
             raw = chat_json(CRISIS_SYSTEM, user)
+            raw["quote"] = quote
             pipeline.append({"step": "web", "ok": True, "detail": "busca OpenRouter + plugin web"})
             verdict = sanitize(raw, matches)
             verdict["pipeline"] = pipeline
