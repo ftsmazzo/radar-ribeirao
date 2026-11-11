@@ -40,40 +40,57 @@ def load_portals_config() -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-CITY_MARKERS = (
+# Cidade explícita no texto (manchete de rede nacional / regional ampla).
+STRONG_CITY_MARKERS = (
     "ribeirao preto",
-    "ribeirão preto",
-    "ribeirao",
-    "ribeirão",
+    "ribeirao e franca",
+    "ribeirao preto e franca",
     "bonfim paulista",
+)
+
+NEIGHBORHOOD_MARKERS = (
     "campos eliseos",
     "jardim paulista",
+    "cidade nova",
+    "vila virginia",
+    "vila tibério",
+    "vila tiberio",
+    "ribeirao verde",
+    "sumarezinho",
+    "ipiranga",
+    "centro de ribeirao",
 )
 
 LOCAL_ORG_MARKERS = (
     "saerp",
     "rp mobi",
     "rpmobi",
+    "ribeirao mobilidade",
     "prefeitura de ribeirao",
-    "prefeitura de ribeirão",
+    "prefeitura municipal de ribeirao",
     "camara de ribeirao",
-    "câmara de ribeirão",
     "camara municipal de ribeirao",
-    "câmara municipal de ribeirão",
+    "ubds ",
 )
 
+# Serviço público municipal — evita "prefeitura" solta de outra cidade.
 SERVICE_MARKERS = (
-    "prefeitura",
     "saerp",
     "rp mobi",
     "rpmobi",
+    "ribeirao mobilidade",
     "secretaria da saude",
     "secretaria de saude",
     "secretaria municipal",
+    "secretaria de obras",
+    "secretaria de educacao",
+    "secretaria de educação",
     "ubs ",
     "upa ",
+    "ubds ",
     "posto de saude",
     "pronto atendimento",
+    "pronto-socorro",
     "poupatempo",
     "iptu",
     "coleta seletiva",
@@ -81,53 +98,120 @@ SERVICE_MARKERS = (
     "falta dagua",
     "falta d agua",
     "falta de agua",
+    "racionamento de agua",
     "vazamento",
     "onibus urbano",
     "transporte coletivo",
+    "ponto de onibus",
+    "parada de onibus",
     "camara municipal",
-    "câmara municipal",
     "asfalto",
     "tapa buraco",
+    "tapa-buraco",
     "iluminacao publica",
-    "iluminação pública",
     "vacinacao",
-    "vacinação",
+    "campanha de vacina",
+    "zerar o dengue",
+    "combate a dengue",
+    "combate à dengue",
+    "guarda municipal",
+    "guarda civil",
+    "gcrm",
+    "servico funerario",
+    "serviço funerário",
+    "limpeza urbana",
+    "varrição",
+    "varricao",
+)
+
+# Em feed 100% local, "prefeitura" sem outra cidade costuma ser a daqui.
+LOCAL_FEED_SERVICE = (
+    "prefeitura",
+    "camara municipal",
+    "câmara municipal",
+    "secretario municipal",
+    "secretário municipal",
+    "secretaria municipal",
 )
 
 NOISE_MARKERS = (
     "futebol",
     "brasileirao",
-    "brasileirão",
-    "campeonato",
+    "campeonato brasileiro",
+    "serie a",
+    "série a",
+    "serie b",
+    "libertadores",
+    "copa do brasil",
     "gol ",
+    " gols",
+    "placar",
+    "classicos",
+    "clássico",
+    "botafogo",
+    "corinthians",
+    "palmeiras",
+    "sao paulo fc",
+    "são paulo fc",
+    "santos fc",
+    "flamengo",
     "horoscopo",
     "horóscopo",
     "novela",
     "bbb",
     "celebridade",
     "receita de",
+    "reality",
+    "bastidores da tv",
+    "shows e festas",
+    "agenda cultural",
+    "mega-sena",
+    "megasena",
+    "lotofacil",
+    "loteria",
+    "signos",
+    "astrologia",
+    "cinema",
+    "estreia de filme",
 )
 
 
-def classify(title: str, summary: str) -> dict:
-    blob = _fold(f"{title} {summary}")
-    city = any(mark in blob for mark in CITY_MARKERS)
-    local_org = any(mark in blob for mark in LOCAL_ORG_MARKERS)
-    service = any(mark in blob for mark in SERVICE_MARKERS) or local_org
-    noise = any(mark in blob for mark in NOISE_MARKERS) and not (city and service)
+def _has_any(blob: str, markers: tuple[str, ...]) -> bool:
+    return any(mark in blob for mark in markers)
 
-    if (city and service) or local_org:
+
+def classify(title: str, summary: str, *, local_feed: bool = False) -> dict:
+    """Classifica manchete para a fila da assessoria.
+
+    Feeds locais (G1 Ribeirão, CBN etc.) quase nunca repetem o nome da cidade —
+    por isso local_feed assume contexto municipal, sem liberar esporte/entretenimento.
+    """
+    blob = _fold(f"{title} {summary}")
+    strong_city = _has_any(blob, STRONG_CITY_MARKERS)
+    neighborhood = _has_any(blob, NEIGHBORHOOD_MARKERS)
+    city = strong_city or neighborhood or local_feed
+    local_org = _has_any(blob, LOCAL_ORG_MARKERS)
+    service = (
+        local_org
+        or _has_any(blob, SERVICE_MARKERS)
+        or (local_feed and _has_any(blob, LOCAL_FEED_SERVICE))
+        or (strong_city and "prefeitura" in blob)
+    )
+    noise = _has_any(blob, NOISE_MARKERS)
+
+    # Esporte/entretenimento fora da fila — mesmo em feed local.
+    if noise and not local_org:
+        tag = "ruido"
+        label = "Fora do escopo"
+        priority = "baixa"
+    elif local_org or (service and city):
         tag = "prefeitura"
-        label = "Fala da prefeitura / serviço"
+        label = "Prefeitura / serviço"
         priority = "alta"
     elif city:
         tag = "cidade"
         label = "Fala da cidade"
         priority = "media"
-    elif noise:
-        tag = "ruido"
-        label = "Fora do escopo"
-        priority = "baixa"
     else:
         tag = "geral"
         label = "Geral / região"
@@ -137,10 +221,35 @@ def classify(title: str, summary: str) -> dict:
         "tag": tag,
         "label": label,
         "priority": priority,
-        "city_hit": city,
-        "service_hit": service,
-        "checkable": tag in {"prefeitura", "cidade"},
+        "city_hit": bool(city),
+        "service_hit": bool(service),
+        "checkable": tag == "prefeitura",
+        "reasons": _reasons(strong_city, neighborhood, local_feed, local_org, service, noise),
     }
+
+
+def _reasons(
+    strong_city: bool,
+    neighborhood: bool,
+    local_feed: bool,
+    local_org: bool,
+    service: bool,
+    noise: bool,
+) -> list[str]:
+    out = []
+    if strong_city:
+        out.append("cidade")
+    if neighborhood:
+        out.append("bairro")
+    if local_feed:
+        out.append("feed local")
+    if local_org:
+        out.append("órgão local")
+    if service:
+        out.append("serviço")
+    if noise:
+        out.append("ruído")
+    return out
 
 
 def _strip_html(raw: str) -> str:
@@ -202,7 +311,7 @@ def parse_feed(xml_text: str, portal: dict) -> list[dict]:
         )
         if not title or not link:
             continue
-        score = classify(title, summary)
+        score = classify(title, summary, local_feed=True)
         item_id = hashlib.sha1(f"{portal['id']}|{link}".encode("utf-8")).hexdigest()[:16]
         items.append(
             {
@@ -304,6 +413,8 @@ def refresh_portals(force: bool = False) -> dict:
             "cidade": sum(1 for i in items if i.get("tag") == "cidade"),
             "geral": sum(1 for i in items if i.get("tag") == "geral"),
             "ruido": sum(1 for i in items if i.get("tag") == "ruido"),
+            "relevantes": sum(1 for i in items if i.get("tag") in {"prefeitura", "cidade"}),
+            "fila": sum(1 for i in items if i.get("checkable")),
             "ativos": sum(1 for s in sources if s.get("enabled")),
         },
     }
@@ -316,10 +427,19 @@ def refresh_portals(force: bool = False) -> dict:
 def portals_snapshot(force: bool = False, tag: str = "") -> dict:
     data = refresh_portals(force=force)
     items = list(data.get("items") or [])
-    wanted = (tag or "").strip().lower()
+    wanted = (tag or "").strip().lower() or "relevantes"
     if wanted in {"prefeitura", "cidade", "geral", "ruido"}:
         items = [item for item in items if item.get("tag") == wanted]
+    elif wanted == "fila":
+        items = [item for item in items if item.get("checkable")]
+    elif wanted in {"todos", "all"}:
+        wanted = "todos"
+    elif wanted == "relevantes":
+        items = [item for item in items if item.get("tag") in {"prefeitura", "cidade"}]
+    else:
+        wanted = "relevantes"
+        items = [item for item in items if item.get("tag") in {"prefeitura", "cidade"}]
     out = dict(data)
     out["items"] = items
-    out["filter"] = wanted or "todos"
+    out["filter"] = wanted
     return out

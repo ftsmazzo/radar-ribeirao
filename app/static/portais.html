@@ -20,6 +20,16 @@
       background: var(--plate);
       padding: 14px 12px;
       min-height: 88px;
+      cursor: pointer;
+      text-align: left;
+      color: inherit;
+      width: 100%;
+      transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+    .stat:hover { border-color: var(--mark); transform: translateY(-1px); }
+    .stat.on {
+      border-color: var(--coral);
+      box-shadow: inset 0 0 0 1px var(--coral);
     }
     .stat strong {
       display: block;
@@ -44,19 +54,49 @@
       gap: 10px;
       align-items: center;
       margin: 0 0 18px;
+      position: sticky;
+      top: 64px;
+      z-index: 5;
+      padding: 10px 0;
+      background: linear-gradient(180deg, rgba(12,12,12,0.96), rgba(12,12,12,0.88));
+      backdrop-filter: blur(8px);
     }
-    .toolbar .filters { display: flex; flex-wrap: wrap; gap: 8px; }
+    .toolbar .filters {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 8px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 2px;
+      max-width: 100%;
+    }
     .filter-btn {
-      min-height: 40px;
-      padding: 0 12px;
+      min-height: 44px;
+      padding: 0 14px;
       background: transparent;
       border: 1px solid var(--line);
       color: var(--ink-soft);
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+    .filter-btn .count {
+      display: inline-block;
+      margin-left: 6px;
+      opacity: 0.75;
+      font-size: 0.72em;
     }
     .filter-btn.on {
       background: var(--coral);
       border-color: var(--coral);
       color: var(--night);
+      box-shadow: 0 0 0 2px rgba(241, 93, 90, 0.35);
+    }
+    .filter-btn.on .count { opacity: 1; }
+    .selection-hint {
+      width: 100%;
+      margin: -6px 0 14px;
+      color: var(--ink-soft);
+      font-size: 0.92rem;
     }
     .sources-row {
       display: grid;
@@ -253,12 +293,12 @@
       </div>
     </section>
 
-    <section class="stats" aria-label="Resumo">
-      <div class="stat"><strong id="n-total">0</strong><span>Manchetes</span></div>
-      <div class="stat hot"><strong id="n-pref">0</strong><span>Prefeitura / serviço</span></div>
-      <div class="stat ok"><strong id="n-city">0</strong><span>Fala da cidade</span></div>
-      <div class="stat"><strong id="n-geral">0</strong><span>Geral / região</span></div>
-      <div class="stat"><strong id="n-ruido">0</strong><span>Fora do escopo</span></div>
+    <section class="stats" aria-label="Resumo" id="stats">
+      <button class="stat" type="button" data-tag="todos"><strong id="n-total">0</strong><span>Todas</span></button>
+      <button class="stat hot on" type="button" data-tag="relevantes"><strong id="n-rel">0</strong><span>Relevantes</span></button>
+      <button class="stat" type="button" data-tag="fila"><strong id="n-fila">0</strong><span>Na fila</span></button>
+      <button class="stat" type="button" data-tag="prefeitura"><strong id="n-pref">0</strong><span>Prefeitura</span></button>
+      <button class="stat ok" type="button" data-tag="cidade"><strong id="n-city">0</strong><span>Cidade</span></button>
     </section>
 
     <section>
@@ -266,13 +306,19 @@
       <div class="sources-row" id="sources"></div>
     </section>
 
+    <p class="selection-hint" id="selection-hint">
+      Filtro ativo: <strong>Relevantes</strong> — só cidade e serviço público. Esporte e entretenimento ficam em Ruído.
+    </p>
+
     <section class="toolbar">
-      <div class="filters" id="filters">
-        <button class="filter-btn on" data-tag="" type="button">Todos</button>
-        <button class="filter-btn" data-tag="prefeitura" type="button">Prefeitura</button>
-        <button class="filter-btn" data-tag="cidade" type="button">Cidade</button>
-        <button class="filter-btn" data-tag="geral" type="button">Geral</button>
-        <button class="filter-btn" data-tag="ruido" type="button">Ruído</button>
+      <div class="filters" id="filters" role="tablist" aria-label="Filtros de manchetes">
+        <button class="filter-btn" data-tag="todos" type="button" aria-pressed="false">Todos <span class="count" data-count="total">0</span></button>
+        <button class="filter-btn on" data-tag="relevantes" type="button" aria-pressed="true">Relevantes <span class="count" data-count="relevantes">0</span></button>
+        <button class="filter-btn" data-tag="fila" type="button" aria-pressed="false">Na fila <span class="count" data-count="fila">0</span></button>
+        <button class="filter-btn" data-tag="prefeitura" type="button" aria-pressed="false">Prefeitura <span class="count" data-count="prefeitura">0</span></button>
+        <button class="filter-btn" data-tag="cidade" type="button" aria-pressed="false">Cidade <span class="count" data-count="cidade">0</span></button>
+        <button class="filter-btn" data-tag="geral" type="button" aria-pressed="false">Geral <span class="count" data-count="geral">0</span></button>
+        <button class="filter-btn" data-tag="ruido" type="button" aria-pressed="false">Ruído <span class="count" data-count="ruido">0</span></button>
       </div>
       <span class="updated" id="meta-line"></span>
     </section>
@@ -291,8 +337,17 @@
     const chipUpdated = document.getElementById("chip-updated");
     const metaLine = document.getElementById("meta-line");
     const btnRefresh = document.getElementById("btn-refresh");
-    let currentTag = "";
+    let currentTag = "relevantes";
     let busy = false;
+    const FILTER_HINT = {
+      todos: "Filtro ativo: <strong>Todos</strong> — lista completa dos feeds.",
+      relevantes: "Filtro ativo: <strong>Relevantes</strong> — só cidade e serviço público. Esporte e entretenimento ficam em Ruído.",
+      fila: "Filtro ativo: <strong>Na fila</strong> — só manchetes checáveis (prefeitura / serviço).",
+      prefeitura: "Filtro ativo: <strong>Prefeitura</strong> — menções a serviço ou órgão municipal.",
+      cidade: "Filtro ativo: <strong>Cidade</strong> — fala local sem serviço explícito.",
+      geral: "Filtro ativo: <strong>Geral</strong> — região sem encaixe claro.",
+      ruido: "Filtro ativo: <strong>Ruído</strong> — esporte, entretenimento e fora do escopo."
+    };
 
     function esc(s) {
       return String(s || "")
@@ -300,6 +355,21 @@
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;");
+    }
+
+    function setFilter(tag, reload = true) {
+      currentTag = tag || "relevantes";
+      document.querySelectorAll(".filter-btn").forEach((el) => {
+        const on = el.dataset.tag === currentTag;
+        el.classList.toggle("on", on);
+        el.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      document.querySelectorAll("#stats .stat").forEach((el) => {
+        el.classList.toggle("on", el.dataset.tag === currentTag);
+      });
+      const hint = document.getElementById("selection-hint");
+      if (hint) hint.innerHTML = FILTER_HINT[currentTag] || FILTER_HINT.relevantes;
+      if (reload) load(false);
     }
 
     function when(iso) {
@@ -375,16 +445,20 @@
         const data = await res.json();
         const c = data.counts || {};
         document.getElementById("n-total").textContent = c.total || 0;
+        document.getElementById("n-rel").textContent = c.relevantes || 0;
+        document.getElementById("n-fila").textContent = c.fila || 0;
         document.getElementById("n-pref").textContent = c.prefeitura || 0;
         document.getElementById("n-city").textContent = c.cidade || 0;
-        document.getElementById("n-geral").textContent = c.geral || 0;
-        document.getElementById("n-ruido").textContent = c.ruido || 0;
+        document.querySelectorAll("[data-count]").forEach((el) => {
+          const key = el.dataset.count;
+          el.textContent = c[key] ?? 0;
+        });
         renderSources(data.sources || []);
         renderItems(data.items || []);
         const stamp = when(data.fetched_at) || "agora";
         chipUpdated.textContent = `Atualizado · ${stamp}`;
         chipUpdated.className = "chip on";
-        metaLine.textContent = `${data.counts?.ativos || 0} feeds ativos · filtro: ${data.filter || "todos"}`;
+        metaLine.textContent = `${c.ativos || 0} feeds · ${data.items?.length || 0} no filtro · ${data.filter || currentTag}`;
         window.__stories = Object.fromEntries((data.items || []).map((i) => [i.id, i]));
         if ((data.errors || []).length) {
           metaLine.textContent += ` · ${data.errors.length} feed(s) com falha`;
@@ -402,9 +476,13 @@
     document.getElementById("filters").addEventListener("click", (ev) => {
       const btn = ev.target.closest("button[data-tag]");
       if (!btn) return;
-      currentTag = btn.dataset.tag || "";
-      document.querySelectorAll(".filter-btn").forEach((el) => el.classList.toggle("on", el === btn));
-      load(false);
+      setFilter(btn.dataset.tag || "relevantes", true);
+    });
+
+    document.getElementById("stats").addEventListener("click", (ev) => {
+      const btn = ev.target.closest("button[data-tag]");
+      if (!btn) return;
+      setFilter(btn.dataset.tag || "relevantes", true);
     });
 
     btnRefresh.addEventListener("click", () => load(true));
