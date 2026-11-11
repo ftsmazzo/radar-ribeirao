@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Float, Integer, String, Text, create_engine
+from sqlalchemy import DateTime, Float, Integer, String, Text, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 from app.settings import settings
@@ -35,6 +35,10 @@ class Case(Base):
     pipeline_json: Mapped[str] = mapped_column(Text, default="[]")
     notified: Mapped[int] = mapped_column(Integer, default=0)
     origin: Mapped[str] = mapped_column(String(24), default="demo")
+    vehicle: Mapped[str] = mapped_column(String(120), default="")
+    place: Mapped[str] = mapped_column(String(120), default="")
+    said_at: Mapped[str] = mapped_column(String(80), default="")
+    program: Mapped[str] = mapped_column(String(160), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -68,6 +72,19 @@ class RunState(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+def _migrate_cases(conn) -> None:
+    rows = conn.execute(text("PRAGMA table_info(cases)")).fetchall()
+    existing = {row[1] for row in rows}
+    for name, ddl in (
+        ("vehicle", "ALTER TABLE cases ADD COLUMN vehicle VARCHAR(120) DEFAULT ''"),
+        ("place", "ALTER TABLE cases ADD COLUMN place VARCHAR(120) DEFAULT ''"),
+        ("said_at", "ALTER TABLE cases ADD COLUMN said_at VARCHAR(80) DEFAULT ''"),
+        ("program", "ALTER TABLE cases ADD COLUMN program VARCHAR(160) DEFAULT ''"),
+    ):
+        if name not in existing:
+            conn.execute(text(ddl))
+
+
 def init_db() -> None:
     global engine, Session
     url = settings.database_url
@@ -75,6 +92,9 @@ def init_db() -> None:
     engine = create_engine(url, pool_pre_ping=True, connect_args=connect_args)
     Session = sessionmaker(bind=engine, expire_on_commit=False)
     Base.metadata.create_all(engine)
+    if url.startswith("sqlite"):
+        with engine.begin() as conn:
+            _migrate_cases(conn)
     with Session() as db:
         if db.get(RunState, 1) is None:
             db.add(RunState(id=1, running=0, phase="idle"))
@@ -111,6 +131,10 @@ def case_dict(row: Case) -> dict:
         "pipeline": pipeline,
         "notified": bool(row.notified),
         "origin": row.origin,
+        "vehicle": getattr(row, "vehicle", "") or "",
+        "place": getattr(row, "place", "") or "",
+        "said_at": getattr(row, "said_at", "") or "",
+        "program": getattr(row, "program", "") or "",
         "created_at": row.created_at.isoformat() if row.created_at else "",
     }
 

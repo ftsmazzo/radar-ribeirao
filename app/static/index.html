@@ -299,8 +299,10 @@
       const src = (c.sources || []).map((s) =>
         `<div class="source"><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a><p>${esc(s.excerpt || s.kind)}</p></div>`
       ).join("");
+      const citation = [c.vehicle, c.program, c.said_at, c.place].filter(Boolean).join(" · ");
       return `<article class="case${animate ? " case-in" : ""}" data-id="${c.id}">
         <p class="quote">“${esc(c.quote)}”</p>
+        ${citation ? `<p class="note" style="margin-top:-4px;opacity:.82">${esc(citation)}</p>` : ""}
         <div class="${stampClass(c.status)}">${esc(label)}</div>
         <div class="meta">
           <span>${esc(c.theme || "tema")}</span>
@@ -323,7 +325,7 @@
     function renderCases(rows) {
       const next = sig(rows.map((c) => [
         c.id, c.status, c.summary, c.note, c.notified, c.needs_response,
-        c.confidence, c.pipeline, c.sources
+        c.confidence, c.pipeline, c.sources, c.vehicle, c.said_at, c.place, c.program
       ]));
       if (next === casesSig) return;
       const prevIds = new Set(

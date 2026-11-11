@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
@@ -14,6 +15,15 @@ from app.portals import portals_snapshot
 from app.settings import settings
 
 STATIC = Path(__file__).parent / "static"
+BRT = timezone(timedelta(hours=-3))
+
+
+def utcnow_br_date() -> str:
+    return datetime.now(BRT).strftime("%d/%m/%Y")
+
+
+def utcnow_br_time() -> str:
+    return datetime.now(BRT).strftime("%Hh%M")
 
 
 @asynccontextmanager
@@ -89,6 +99,13 @@ def checar_manual(body: ManualBody) -> dict:
         theme=matches[0]["theme"] if matches else "outro",
         kb_ids=[m["id"] for m in matches[:3]],
         use_live_web=bool(settings.openrouter_key),
+        context={
+            "vehicle": "Checagem manual",
+            "program": "Entrada pela Sala",
+            "place": "Ribeirão Preto (SP)",
+            "date": utcnow_br_date(),
+            "time": utcnow_br_time(),
+        },
     )
     return {"quote": text, **verdict}
 

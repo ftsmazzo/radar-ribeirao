@@ -8,6 +8,7 @@ import re
 import httpx
 
 from app.kb import kb_sources, search_kb
+from app.labels import STAMP_LABEL
 from app.settings import settings
 
 CLOSED = (
@@ -31,27 +32,9 @@ OPEN = (
 ALLOWED = set(CLOSED + OPEN + ("promessa",))
 NEEDS_SOURCE = set(CLOSED)
 
-STAMP_LABEL = {
-    "sustentado": "Confirmado",
-    "sustentado_ressalva": "Confirmado, com ressalva",
-    "nao_e_bem_assim": "Não é bem assim",
-    "exagerado": "Exagerado",
-    "distorcido": "Distorcido",
-    "contradito": "Contradito",
-    "sem_prova": "Sem prova",
-    "sem_prova_publica": "Sem prova pública",
-    "versoes_em_disputa": "Versões em disputa",
-    "indicio": "Indício",
-    "dados_incompletos": "Dados incompletos",
-    "audio_confuso": "Áudio confuso",
-    "sem_evidencia": "Sem evidência",
-    "inconclusivo": "Inconclusivo",
-    "promessa": "Promessa",
-}
-
 CRISIS_SYSTEM = """Você é especialista em comunicação de crise e assessoria de imprensa do poder público municipal brasileiro.
 Cidade: Ribeirão Preto (SP).
-Tom: sóbrio, factual, sem ataque, sem marketing eleitoral, sem a palavra fake.
+Tom: sóbrio, factual, institucional — linguagem de nota oficial / assessoria. Sem ataque, sem marketing eleitoral, sem a palavra fake, sem a palavra 'contradito'.
 Responda SÓ JSON:
 {
   "status":"sustentado|sustentado_ressalva|nao_e_bem_assim|exagerado|distorcido|contradito|sem_prova|sem_prova_publica|versoes_em_disputa|indicio|dados_incompletos|audio_confuso|promessa",
@@ -65,21 +48,46 @@ Responda SÓ JSON:
   "sources":[{"title":"...","url":"https://...","kind":"oficial|checagem|imprensa","excerpt":"trecho curto"}]
 }
 
+Significado dos status (código interno → juízo público):
+- sustentado = Correto
+- sustentado_ressalva = Correto, com ressalva
+- nao_e_bem_assim = Impreciso
+- exagerado = Superestimado
+- distorcido = Descontextualizado
+- contradito = Não procede
+- sem_prova = Sem registro oficial
+- sem_prova_publica = Sem registro público
+- versoes_em_disputa = Versões em disputa
+- indicio = Indício
+- dados_incompletos = Dados incompletos
+- audio_confuso = Registro inconsistente
+- promessa = Compromisso anunciado
+
 Formato obrigatório do campo note:
 NOTA À IMPRENSA — Prefeitura de Ribeirão Preto
 Assunto: <uma linha>
+
+Referência da veiculação:
+Veículo: <nome do veículo>
+Programa/espaço: <programa ou manchete>
+Data: <dd/mm/aaaa>
+Horário: <HHhMM>
+Local: <cidade/UF>
+
 <2 a 4 parágrafos curtos em terceira pessoa, tom institucional, sem bullet de orientação interna>
-Fonte: <título> — <url https>
+Fonte oficial: <título> — <url https>
 Assessoria de Comunicação / Prefeitura Municipal de Ribeirão Preto
 
 Regras:
 - A note NÃO é briefing interno. É o texto que a assessoria poderia colar no WhatsApp/e-mail da imprensa depois de validar.
 - Não escreva 'sugestão', 'recomenda-se', 'orientação' nem 'posicionamento sugerido'.
-- Não use a palavra fake. Não ataque o veículo nem o ouvinte.
+- Não use fake nem contradito no texto da nota. Use 'não procede', 'impreciso', 'descontextualizado' etc.
+- Não ataque o veículo nem o ouvinte.
+- Inclua SEMPRE o bloco Referência da veiculação com veículo, data, horário e local recebidos no contexto.
 - Carimbo fechado só com URL https nas sources OU com fato da base oficial já listado abaixo (aí repita a URL da base).
-- Se a fala contradiz a base oficial com URL, use contradito ou distorcido.
+- Se a fala não procede perante a base oficial com URL, use contradito (rótulo público: Não procede) ou distorcido.
 - Se a fala confirma a base, use sustentado.
-- needs_response=true quando o conteúdo exige posicionamento público (falso, parcial, distorcido, ou verdadeiro com risco de ruído).
+- needs_response=true quando o conteúdo exige posicionamento público.
 - Prefira portal ribeiraopreto.sp.gov.br, SAERP, RP Mobi e páginas oficiais.
 - Não invente URL. Só use URLs recebidas no contexto ou devolvidas pela busca.
 """
@@ -214,6 +222,7 @@ def sanitize(payload: dict, kb_matches: list[dict]) -> dict:
         theme = (kb_matches[0].get("theme") if kb_matches else "outro") or "outro"
     note = str(payload.get("note") or "").strip()
     quote_hint = str(payload.get("quote") or "")
+    context = payload.get("broadcast") if isinstance(payload.get("broadcast"), dict) else {}
     if not note or "sugestão" in note.casefold() or "orientação" in note.casefold():
         note = _fallback_note(
             status,
@@ -222,6 +231,7 @@ def sanitize(payload: dict, kb_matches: list[dict]) -> dict:
             sources,
             quote=quote_hint,
             theme=theme,
+            context=context,
         )
     if "NOTA À IMPRENSA" not in note.upper():
         note = _fallback_note(
@@ -231,7 +241,10 @@ def sanitize(payload: dict, kb_matches: list[dict]) -> dict:
             sources,
             quote=quote_hint,
             theme=theme,
+            context=context,
         )
+    note = _ensure_broadcast_block(note, context)
+    note = note.replace("Contradito", "Não procede").replace("contradito", "não procede")
     return {
         "status": status,
         "label": STAMP_LABEL.get(status, status),
@@ -240,9 +253,13 @@ def sanitize(payload: dict, kb_matches: list[dict]) -> dict:
         "missing": str(payload.get("missing") or "")[:300],
         "needs_response": needs,
         "response_priority": priority,
-        "note": note[:2200],
+        "note": note[:2800],
         "theme": theme,
         "sources": sources[:8],
+        "vehicle": str(context.get("vehicle") or "")[:120],
+        "place": str(context.get("place") or "")[:120],
+        "said_at": str(context.get("said_at") or "")[:80],
+        "program": str(context.get("program") or "")[:160],
     }
 
 
@@ -261,6 +278,71 @@ def _press_subject(status: str, theme: str, quote: str) -> str:
     return f"Atualização sobre {theme_label}"
 
 
+def normalize_broadcast(context: dict | None = None) -> dict:
+    ctx = dict(context or {})
+    vehicle = str(ctx.get("vehicle") or "Veículo local").strip() or "Veículo local"
+    program = str(ctx.get("program") or ctx.get("space") or "Programa / espaço não informado").strip()
+    place = str(ctx.get("place") or "Ribeirão Preto (SP)").strip() or "Ribeirão Preto (SP)"
+    date = str(ctx.get("date") or "").strip()
+    time_label = str(ctx.get("time") or "").strip()
+    said_at = str(ctx.get("said_at") or "").strip()
+    if not said_at and (date or time_label):
+        said_at = " · ".join(part for part in (date, time_label) if part)
+    if said_at and " · " in said_at and not date:
+        parts = [p.strip() for p in said_at.split("·")]
+        if parts:
+            date = parts[0]
+        if len(parts) > 1:
+            time_label = parts[1]
+    if not date:
+        date = "data a confirmar"
+    if not time_label:
+        time_label = "horário a confirmar"
+    return {
+        "vehicle": vehicle[:120],
+        "program": program[:160],
+        "place": place[:120],
+        "date": date[:40],
+        "time": time_label[:40],
+        "said_at": said_at[:80] or f"{date} · {time_label}",
+    }
+
+
+def broadcast_block(context: dict | None = None) -> str:
+    ctx = normalize_broadcast(context)
+    return (
+        "Referência da veiculação:\n"
+        f"Veículo: {ctx['vehicle']}\n"
+        f"Programa/espaço: {ctx['program']}\n"
+        f"Data: {ctx['date']}\n"
+        f"Horário: {ctx['time']}\n"
+        f"Local: {ctx['place']}"
+    )
+
+
+def _ensure_broadcast_block(note: str, context: dict | None = None) -> str:
+    text = (note or "").strip()
+    block = broadcast_block(context)
+    if "referência da veiculação" in text.casefold():
+        return text
+    lines = text.splitlines()
+    out: list[str] = []
+    inserted = False
+    for index, line in enumerate(lines):
+        out.append(line)
+        if not inserted and line.casefold().startswith("assunto:"):
+            out.append("")
+            out.append(block)
+            out.append("")
+            inserted = True
+            # avoid double blank if next line already empty
+            if index + 1 < len(lines) and not lines[index + 1].strip():
+                continue
+    if not inserted:
+        out = [block, "", *out]
+    return "\n".join(out).strip()
+
+
 def _fallback_note(
     status: str,
     summary: str,
@@ -268,20 +350,22 @@ def _fallback_note(
     sources: list[dict],
     quote: str = "",
     theme: str = "",
+    context: dict | None = None,
 ) -> str:
     detail = ""
     if kb_matches:
         detail = str(kb_matches[0].get("detail") or kb_matches[0].get("claim") or "")
-    source_line = "Fonte: Portal da Prefeitura de Ribeirão Preto"
+    source_line = "Fonte oficial: Portal da Prefeitura de Ribeirão Preto"
     if sources:
-        source_line = f"Fonte: {sources[0]['title']} — {sources[0]['url']}"
+        source_line = f"Fonte oficial: {sources[0]['title']} — {sources[0]['url']}"
     subject = _press_subject(status, theme or (kb_matches[0].get("theme") if kb_matches else ""), quote)
+    public = STAMP_LABEL.get(status, status)
     if status in {"contradito", "distorcido", "exagerado", "nao_e_bem_assim"}:
         body = (
             f"Em atenção a informações veiculadas sobre o serviço público municipal, "
             f"a Prefeitura de Ribeirão Preto presta o seguinte esclarecimento.\n\n"
-            f"Foi dito que “{quote}”. {summary} "
-            f"{detail}\n\n"
+            f"Foi dito que “{quote}”. Classificação da assessoria: {public}. "
+            f"{summary} {detail}\n\n"
             f"A Administração Municipal reforça os canais oficiais de atendimento e permanece "
             f"à disposição da imprensa e da população para esclarecimentos adicionais."
         )
@@ -300,13 +384,19 @@ def _fallback_note(
     return (
         "NOTA À IMPRENSA — Prefeitura de Ribeirão Preto\n"
         f"Assunto: {subject}\n\n"
+        f"{broadcast_block(context)}\n\n"
         f"{body.strip()}\n\n"
         f"{source_line}\n"
         "Assessoria de Comunicação / Prefeitura Municipal de Ribeirão Preto"
     )
 
 
-def offline_verdict(quote: str, normalized: str, kb_ids: list[str] | None = None) -> dict:
+def offline_verdict(
+    quote: str,
+    normalized: str,
+    kb_ids: list[str] | None = None,
+    context: dict | None = None,
+) -> dict:
     """Caminho apresentável sem OpenRouter: KB oficial + regras."""
     matches = search_kb(f"{quote} {normalized}", hint_ids=kb_ids or [])
     sources = kb_sources(matches)
@@ -333,17 +423,17 @@ def offline_verdict(quote: str, normalized: str, kb_ids: list[str] | None = None
         status = "contradito"
         needs = True
         priority = "alta"
-        summary = "A fala nega serviço que a base oficial da Prefeitura documenta com URL."
+        summary = "A fala não procede: a base oficial da Prefeitura documenta o serviço com URL."
     elif matches and confirm:
         status = "sustentado"
         needs = True
         priority = "baixa"
-        summary = "A fala está alinhada ao que o portal oficial registra."
+        summary = "A fala está correta perante o que o portal oficial registra."
     elif matches:
         status = "nao_e_bem_assim"
         needs = True
         priority = "media"
-        summary = "Há dado oficial relacionado, mas o recorte da fala precisa de correção."
+        summary = "Há dado oficial relacionado, mas o recorte da fala é impreciso."
     else:
         status = "sem_evidencia"
         needs = True
@@ -351,6 +441,7 @@ def offline_verdict(quote: str, normalized: str, kb_ids: list[str] | None = None
         summary = "Sem fato suficiente na base local; falta confirmação em fonte https."
 
     theme = matches[0]["theme"] if matches else "outro"
+    broadcast = normalize_broadcast(context)
     payload = {
         "status": status,
         "confidence": 0.82 if sources else 0.35,
@@ -360,7 +451,10 @@ def offline_verdict(quote: str, normalized: str, kb_ids: list[str] | None = None
         "response_priority": priority,
         "theme": theme,
         "quote": quote,
-        "note": _fallback_note(status, summary, matches, sources, quote=quote, theme=theme),
+        "broadcast": broadcast,
+        "note": _fallback_note(
+            status, summary, matches, sources, quote=quote, theme=theme, context=broadcast
+        ),
         "sources": sources,
     }
     return sanitize(payload, matches)
@@ -372,7 +466,9 @@ def verify_claim(
     theme: str = "",
     kb_ids: list[str] | None = None,
     use_live_web: bool = True,
+    context: dict | None = None,
 ) -> dict:
+    broadcast = normalize_broadcast(context)
     matches = search_kb(f"{quote} {normalized} {theme}", hint_ids=kb_ids or [])
     pipeline = [
         {"step": "kb", "ok": True, "detail": f"{len(matches)} fato(s) na base municipal"},
@@ -382,12 +478,15 @@ def verify_claim(
         user = (
             f"Frase ouvida:\n{quote}\n\nAfirmação normalizada:\n{normalized}\n\n"
             f"Tema sugerido: {theme or 'outro'}\n\n"
+            f"Referência da veiculação (obrigatório na nota):\n"
+            f"{json.dumps(broadcast, ensure_ascii=False, indent=2)}\n\n"
             f"Base de conhecimento da Prefeitura (use e cite as URLs):\n{kb_block}\n\n"
             "Faça busca web em fontes oficiais e devolva o JSON pedido."
         )
         try:
             raw = chat_json(CRISIS_SYSTEM, user)
             raw["quote"] = quote
+            raw["broadcast"] = broadcast
             pipeline.append({"step": "web", "ok": True, "detail": "busca OpenRouter + plugin web"})
             verdict = sanitize(raw, matches)
             verdict["pipeline"] = pipeline
@@ -403,7 +502,7 @@ def verify_claim(
                 "detail": "modo base oficial (sem chave OpenRouter neste ambiente)",
             }
         )
-    verdict = offline_verdict(quote, normalized, kb_ids=kb_ids)
+    verdict = offline_verdict(quote, normalized, kb_ids=kb_ids, context=broadcast)
     verdict["pipeline"] = pipeline
     verdict["mode"] = "kb"
     return verdict

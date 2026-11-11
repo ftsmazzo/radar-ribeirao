@@ -2,6 +2,13 @@
   "title": "Cidade em Debate — Rádio Centro AM (simulação)",
   "station": "Rádio Centro AM · Ribeirão Preto",
   "disclaimer": "Roteiro fictício para demonstração. As fontes oficiais usadas na checagem são reais. Fala fora do município ou sem fato checável aparece na escuta e não vira caso.",
+  "broadcast": {
+    "vehicle": "Rádio Centro AM",
+    "program": "Cidade em Debate",
+    "place": "Ribeirão Preto (SP)",
+    "date": "10/11/2026",
+    "start_time": "15:00"
+  },
   "lines": [
     {
       "t": 0,

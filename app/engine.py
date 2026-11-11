@@ -14,7 +14,8 @@ from pathlib import Path
 from sqlalchemy import delete, select
 
 from app.db import Case, Notice, RunState, Segment, case_dict, notice_dict, session, utcnow
-from app.factcheck import STAMP_LABEL, verify_claim
+from app.factcheck import verify_claim
+from app.labels import STAMP_LABEL
 from app.settings import settings
 
 _lock = threading.Lock()
@@ -174,7 +175,12 @@ def _run_demo(run_id: int) -> None:
                 db.commit()
             claim = item.get("claim")
             if isinstance(claim, dict):
-                _process_claim(claim, run_id)
+                _process_claim(
+                    claim,
+                    run_id,
+                    programa=programa,
+                    offset_s=float(item.get("t") or 0),
+                )
                 if not _active(run_id):
                     break
         if _active(run_id):
@@ -186,7 +192,41 @@ def _run_demo(run_id: int) -> None:
             _set_phase("erro", running=False, error=str(exc), run_id=run_id)
 
 
-def _process_claim(claim: dict, run_id: int) -> None:
+def _clock_from_offset(start_time: str, offset_s: float) -> str:
+    raw = (start_time or "15:00").strip()
+    try:
+        hour_s, minute_s = raw.split(":", 1)
+        total = int(hour_s) * 60 + int(minute_s) + int(offset_s // 60)
+    except (TypeError, ValueError):
+        total = 15 * 60 + int(offset_s // 60)
+    total %= 24 * 60
+    return f"{total // 60:02d}h{total % 60:02d}"
+
+
+def _broadcast_for_claim(programa: dict, claim: dict, offset_s: float = 0) -> dict:
+    base = dict(programa.get("broadcast") or {})
+    claim_ctx = claim.get("broadcast") if isinstance(claim.get("broadcast"), dict) else {}
+    merged = {**base, **claim_ctx}
+    date = str(merged.get("date") or "").strip() or "10/11/2026"
+    time_label = str(merged.get("time") or "").strip()
+    if not time_label:
+        time_label = _clock_from_offset(str(merged.get("start_time") or "15:00"), offset_s)
+    return {
+        "vehicle": str(merged.get("vehicle") or programa.get("station") or "Rádio local").strip(),
+        "program": str(merged.get("program") or programa.get("title") or "Programa").strip(),
+        "place": str(merged.get("place") or "Ribeirão Preto (SP)").strip(),
+        "date": date,
+        "time": time_label,
+        "said_at": f"{date} · {time_label}",
+    }
+
+
+def _process_claim(
+    claim: dict,
+    run_id: int,
+    programa: dict | None = None,
+    offset_s: float = 0,
+) -> None:
     if not _active(run_id):
         return
     quote = str(claim.get("quote") or "").strip()
@@ -195,6 +235,7 @@ def _process_claim(claim: dict, run_id: int) -> None:
     kb_ids = [str(x) for x in (claim.get("kb_ids") or [])]
     if len(quote) < 8:
         return
+    context = _broadcast_for_claim(programa or {}, claim, offset_s=offset_s)
 
     _set_phase("detectou", run_id=run_id)
     with session() as db:
@@ -206,6 +247,10 @@ def _process_claim(claim: dict, run_id: int) -> None:
             theme=theme[:40],
             status="processando",
             origin="demo",
+            vehicle=context["vehicle"][:120],
+            place=context["place"][:120],
+            said_at=context["said_at"][:80],
+            program=context["program"][:160],
             pipeline_json=json.dumps(
                 [{"step": "detectou", "ok": True, "detail": "afirmação extraída do áudio/texto"}],
                 ensure_ascii=False,
@@ -226,6 +271,7 @@ def _process_claim(claim: dict, run_id: int) -> None:
         theme=theme,
         kb_ids=kb_ids,
         use_live_web=bool(settings.openrouter_key),
+        context=context,
     )
     if not _active(run_id):
         return
@@ -249,6 +295,10 @@ def _process_claim(claim: dict, run_id: int) -> None:
         row.missing = str(verdict.get("missing") or "")
         row.needs_response = 1 if verdict.get("needs_response") else 0
         row.sources_json = json.dumps(verdict.get("sources") or [], ensure_ascii=False)
+        row.vehicle = str(verdict.get("vehicle") or context["vehicle"])[:120]
+        row.place = str(verdict.get("place") or context["place"])[:120]
+        row.said_at = str(verdict.get("said_at") or context["said_at"])[:80]
+        row.program = str(verdict.get("program") or context["program"])[:160]
         label = STAMP_LABEL.get(row.status, row.status)
         priority = verdict.get("response_priority") or "media"
         subject = ""
