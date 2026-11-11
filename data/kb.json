@@ -1,0 +1,106 @@
+{
+  "city": "Ribeirão Preto",
+  "updated_at": "2026-03-10",
+  "source_portal": "https://www.ribeiraopreto.sp.gov.br/portal/",
+  "facts": [
+    {
+      "id": "upa-24h",
+      "theme": "saude",
+      "title": "UPAs e pronto atendimento 24 horas",
+      "claim": "Ribeirão Preto mantém UPAs e pronto atendimento em regime 24 horas.",
+      "detail": "UPA Leste, UPA Norte Nelson Mandela, UPA Oeste Sumarezinho, UPA Ribeirão Verde e Pronto Atendimento UBDS Vila Virgínia funcionam 24 horas.",
+      "keywords": ["upa", "pronto atendimento", "24 horas", "urgencia", "emergencia", "nao tem posto a noite", "sem atendimento noturno"],
+      "source_title": "Telefones e endereços das unidades de saúde",
+      "source_url": "https://www.ribeiraopreto.sp.gov.br/portal/saude/relacao-telefones-enderecos",
+      "source_kind": "oficial"
+    },
+    {
+      "id": "ubs-horarios",
+      "theme": "saude",
+      "title": "Horários das UBS",
+      "claim": "UBS não param todas às 17h; várias estendem até 19h ou 21h.",
+      "detail": "A maioria das UBS atende das 7h às 17h. Campos Elíseos, Vila Virgínia, José Sampaio e outras vão até 19h. Bonfim Paulista e Parque Ribeirão Preto atendem até 21h; Bonfim também aos sábados e domingos das 8h às 18h.",
+      "keywords": ["ubs", "posto de saude", "horario", "17h", "19h", "21h", "fecha cedo", "nao abre a noite"],
+      "source_title": "Telefones e endereços das unidades de saúde",
+      "source_url": "https://www.ribeiraopreto.sp.gov.br/portal/saude/relacao-telefones-enderecos",
+      "source_kind": "oficial"
+    },
+    {
+      "id": "ubs-central",
+      "theme": "saude",
+      "title": "UBS Central",
+      "claim": "UBS Central funciona das 7h às 17h.",
+      "detail": "UBS Dr. Antônio Marcos Barbin (Central), Rua São José 1254/1262, telefone 3604-3260, horário 07h–17h.",
+      "keywords": ["ubs central", "sao jose"],
+      "source_title": "UBS Central",
+      "source_url": "https://www.ribeiraopreto.sp.gov.br/portal/saude/ubs-central",
+      "source_kind": "oficial"
+    },
+    {
+      "id": "saerp-0800",
+      "theme": "agua",
+      "title": "SAERP atendimento 24h por telefone",
+      "claim": "A SAERP mantém telefone 0800 115 0115 todos os dias, 24 horas.",
+      "detail": "Atendimento telefônico 0800 115 0115 24h. Presencial principal no Poupatempo (Novo Shopping) com agendamento. Serviços online no site da SAERP.",
+      "keywords": ["saerp", "agua", "vazamento", "0800", "falta dagua", "telefone agua", "nao tem canal"],
+      "source_title": "Postos de atendimento SAERP",
+      "source_url": "https://www.ribeiraopreto.sp.gov.br/portal/saerp/postos-de-atendimento",
+      "source_kind": "oficial"
+    },
+    {
+      "id": "saerp-poupatempo",
+      "theme": "agua",
+      "title": "Atendimento presencial SAERP no Poupatempo",
+      "claim": "Atendimento presencial da SAERP ao público ocorre no Poupatempo.",
+      "detail": "Poupatempo no Novo Shopping, Av. Presidente Kennedy 1500. Agendamento prévio. Há também canais online e regionais para parte dos serviços.",
+      "keywords": ["poupatempo", "saerp presencial", "conta de agua"],
+      "source_title": "Postos de atendimento SAERP",
+      "source_url": "https://www.ribeiraopreto.sp.gov.br/portal/saerp/postos-de-atendimento",
+      "source_kind": "oficial"
+    },
+    {
+      "id": "rpmobi-central",
+      "theme": "transporte",
+      "title": "Central de atendimento do transporte coletivo",
+      "claim": "Há central física e 0800 para o transporte coletivo.",
+      "detail": "Central na Rua Tibiriçá 600: segunda a sexta 7h–18h, sábados 7h–13h. Telefone 0800 16 16 001 de segunda a domingo, 6h–23h.",
+      "keywords": ["onibus", "rpmobi", "transporte", "0800 onibus", "tibiriça", "nao tem atendimento"],
+      "source_title": "RP Mobi",
+      "source_url": "https://www.ribeiraopreto.sp.gov.br/portal/rpmobi/",
+      "source_kind": "oficial"
+    },
+    {
+      "id": "rpmobi-tempo-real",
+      "theme": "transporte",
+      "title": "Horário de ônibus em tempo real",
+      "claim": "O usuário consulta horários e tempo de espera por app e QR Code nas paradas.",
+      "detail": "Aplicativo CittaMobi e adesivos com QR Code em pontos de ônibus mostram linhas e estimativa de chegada.",
+      "keywords": ["horario onibus", "cittamobi", "qr code", "tempo real", "nao sabe quando passa"],
+      "source_title": "Pontos de ônibus com QR Code",
+      "source_url": "https://www.ribeiraopreto.sp.gov.br/portal/noticia/pontos-de-onibus-recebem-adesivo-com-codigo-para-consultar-o-horario-das-linhas-em-tempo-real",
+      "source_kind": "oficial"
+    },
+    {
+      "id": "coleta-seletiva",
+      "theme": "limpeza",
+      "title": "Coleta seletiva porta a porta",
+      "claim": "A coleta seletiva porta a porta ocorre uma vez por semana na área urbana.",
+      "detail": "Coleta seletiva porta a porta semanal em 100% da área urbana. Ecopontos funcionam todos os dias das 7h às 19h.",
+      "keywords": ["coleta seletiva", "reciclavel", "ecoponto", "lixo reciclavel", "nao tem coleta"],
+      "source_title": "Recicla Ribeirão — resíduos domiciliares",
+      "source_url": "https://www.ribeiraopreto.sp.gov.br/recicla/residuos-domiciliares",
+      "source_kind": "oficial"
+    },
+    {
+      "id": "prefeitura-sede",
+      "theme": "atendimento",
+      "title": "Sede da Prefeitura",
+      "claim": "Centro Administrativo Prefeito José de Magalhães atende pelo (16) 3977-9000.",
+      "detail": "Rua Américo Brasiliense 426, Centro, CEP 14015-050. Telefone (16) 3977-9000.",
+      "keywords": ["prefeitura", "telefone prefeitura", "americo brasiliense"],
+      "source_title": "Portal da Prefeitura",
+      "source_url": "https://www.ribeiraopreto.sp.gov.br/portal/",
+      "source_kind": "oficial"
+    }
+  ]
+}

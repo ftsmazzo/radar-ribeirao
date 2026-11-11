@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c0c0c">
+  <title>Radar Municipal · Ribeirão Preto</title>
+  <link rel="icon" type="image/png" href="/static/logo-ie-icon.png">
+  <link rel="stylesheet" href="/static/shell.css">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/">
+      <img src="/static/logo-ie.png" alt="Inteligência Eleitoral">
+      <div>
+        <strong>Radar Municipal</strong>
+        <span>Ribeirão Preto · controle de narrativa</span>
+      </div>
+    </a>
+    <nav class="nav">
+      <a class="current" href="/">Sala</a>
+      <a href="/metodo">Método</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <div>
+        <h1>A cidade fala. A prefeitura responde com fonte.</h1>
+        <p>
+          Escuta o programa, detecta afirmação sobre serviço público, cruza a base oficial
+          e a web, escreve nota sóbria e alerta a imprensa do município.
+        </p>
+      </div>
+      <div class="hero-side">
+        <div class="chip" id="chip-city">Ribeirão Preto</div>
+        <div class="chip" id="chip-mode">Modo: —</div>
+        <div class="chip" id="chip-phase">Fase: idle</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
+          <button id="btn-start" type="button">Iniciar programa</button>
+          <button id="btn-stop" class="ghost" type="button">Parar</button>
+          <button id="btn-reset" class="ghost" type="button">Limpar mesa</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="pipeline" aria-label="Fluxo">
+      <div class="step" data-step="ouvindo"><strong>1. Ouve</strong><span>transcrição</span></div>
+      <div class="step" data-step="detectou"><strong>2. Detecta</strong><span>afirmação</span></div>
+      <div class="step" data-step="checando"><strong>3. Cruza</strong><span>KB + web</span></div>
+      <div class="step" data-step="nota"><strong>4. Nota</strong><span>crise sóbria</span></div>
+      <div class="step" data-step="notificando"><strong>5. Alerta</strong><span>imprensa</span></div>
+      <div class="step" data-step="concluido"><strong>6. Arquivo</strong><span>caso fechado</span></div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <h2>Programa ao vivo · simulação</h2>
+        <p id="programa-meta" class="footer-note" style="margin-top:0"></p>
+        <div class="feed" id="feed"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Casos &amp; carimbos</h2>
+        <div class="feed" id="cases"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Sala de imprensa</h2>
+        <div class="feed" id="notices"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Fontes oficiais em uso</h2>
+        <div class="sources" id="sources"></div>
+      </div>
+    </section>
+
+    <p class="footer-note" id="disclaimer"></p>
+  </main>
+
+  <script>
+    const BAD = new Set(["contradito", "distorcido", "exagerado", "sem_prova"]);
+    const WARN = new Set(["nao_e_bem_assim", "sustentado_ressalva"]);
+    const OPEN = new Set([
+      "sem_prova_publica", "versoes_em_disputa", "indicio",
+      "dados_incompletos", "audio_confuso", "sem_evidencia", "inconclusivo"
+    ]);
+    const PHASE_MAP = {
+      idle: [],
+      ouvindo: ["ouvindo"],
+      detectou: ["ouvindo", "detectou"],
+      checando: ["ouvindo", "detectou", "checando"],
+      notificando: ["ouvindo", "detectou", "checando", "nota", "notificando"],
+      concluido: ["ouvindo", "detectou", "checando", "nota", "notificando", "concluido"],
+      parado: ["ouvindo"],
+      erro: ["ouvindo"]
+    };
+
+    const feed = document.getElementById("feed");
+    const casesEl = document.getElementById("cases");
+    const noticesEl = document.getElementById("notices");
+    const sourcesEl = document.getElementById("sources");
+    const chipCity = document.getElementById("chip-city");
+    const chipMode = document.getElementById("chip-mode");
+    const chipPhase = document.getElementById("chip-phase");
+    const programaMeta = document.getElementById("programa-meta");
+    const disclaimer = document.getElementById("disclaimer");
+    const btnStart = document.getElementById("btn-start");
+    const btnStop = document.getElementById("btn-stop");
+    const btnReset = document.getElementById("btn-reset");
+
+    let lastSeg = 0;
+    let lastCase = 0;
+    let lastNotice = 0;
+    let seenPhases = new Set();
+    let casesSig = "";
+    let noticesSig = "";
+    let sourcesSig = "";
+    let phaseSig = "";
+
+    function stampClass(status) {
+      if (BAD.has(status)) return "stamp bad";
+      if (WARN.has(status)) return "stamp warn";
+      if (OPEN.has(status)) return "stamp open";
+      return "stamp";
+    }
+
+    function esc(s) {
+      return String(s || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function sig(value) {
+      return JSON.stringify(value);
+    }
+
+    function paintPipeline(phase, running) {
+      for (const key of (PHASE_MAP[phase] || [])) seenPhases.add(key);
+      if (phase === "notificando" || phase === "concluido") {
+        seenPhases.add("nota");
+        seenPhases.add("notificando");
+      }
+      if (!running && phase === "idle") seenPhases = new Set();
+      document.querySelectorAll(".step").forEach((el) => {
+        const key = el.dataset.step;
+        el.classList.remove("active", "done");
+        if (seenPhases.has(key)) el.classList.add("done");
+        if (key === phase || (phase === "notificando" && key === "nota" && running)) {
+          el.classList.add("active");
+          el.classList.remove("done");
+        }
+      });
+    }
+
+    function renderSegments(rows) {
+      if (!rows.length) {
+        feed.innerHTML = '<div class="empty">Aguardando o início do programa…</div>';
+        lastSeg = 0;
+        return;
+      }
+      const fresh = rows.filter((r) => r.id > lastSeg);
+      if (!lastSeg) feed.innerHTML = "";
+      for (const row of (lastSeg ? fresh : rows)) {
+        const div = document.createElement("div");
+        div.className = "line";
+        div.innerHTML = `<div class="who">${esc(row.speaker)}</div><p>${esc(row.text)}</p>`;
+        feed.appendChild(div);
+        lastSeg = Math.max(lastSeg, row.id);
+      }
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    function caseCard(c, animate) {
+      const label = (window.__stamps && window.__stamps[c.status]) || c.status;
+      const pipes = (c.pipeline || []).map((p) =>
+        `<span class="chip ${p.ok ? "on" : "warn"}">${esc(p.step)}</span>`
+      ).join(" ");
+      const src = (c.sources || []).map((s) =>
+        `<div class="source"><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a><p>${esc(s.excerpt || s.kind)}</p></div>`
+      ).join("");
+      return `<article class="case${animate ? " case-in" : ""}" data-id="${c.id}">
+        <p class="quote">“${esc(c.quote)}”</p>
+        <div class="${stampClass(c.status)}">${esc(label)}</div>
+        <div class="meta">
+          <span>${esc(c.theme || "tema")}</span>
+          <span>${c.needs_response ? "precisa resposta" : "só ciência"}</span>
+          <span>${c.notified ? "imprensa alertada" : "fila"}</span>
+          <span>${Math.round((c.confidence || 0) * 100)}%</span>
+        </div>
+        <div>${pipes}</div>
+        <p class="note">${esc(c.summary)}</p>
+        <p class="note">${esc(c.note)}</p>
+        <div class="sources">${src || '<div class="empty">Sem URL https neste caso.</div>'}</div>
+      </article>`;
+    }
+
+    function renderCases(rows) {
+      const next = sig(rows.map((c) => [
+        c.id, c.status, c.summary, c.note, c.notified, c.needs_response,
+        c.confidence, c.pipeline, c.sources
+      ]));
+      if (next === casesSig) return;
+      const prevIds = new Set(
+        [...casesEl.querySelectorAll(".case[data-id]")].map((el) => el.dataset.id)
+      );
+      if (!rows.length) {
+        casesEl.innerHTML = '<div class="empty">Nenhum caso ainda. As afirmações entram aqui.</div>';
+        casesSig = next;
+        lastCase = 0;
+        return;
+      }
+      const ordered = [...rows].reverse();
+      casesEl.innerHTML = ordered.map((c) =>
+        caseCard(c, !prevIds.has(String(c.id)))
+      ).join("");
+      casesSig = next;
+      lastCase = rows[0]?.id || 0;
+    }
+
+    function renderNotices(rows) {
+      const next = sig(rows.map((n) => [n.id, n.title, n.body]));
+      if (next === noticesSig) return;
+      if (!rows.length) {
+        noticesEl.innerHTML = '<div class="empty">A sala de imprensa ainda está vazia.</div>';
+        noticesSig = next;
+        return;
+      }
+      noticesEl.innerHTML = rows.map((n) =>
+        `<article class="notice"><strong>${esc(n.title)}</strong><p>${esc(n.body)}</p></article>`
+      ).join("");
+      noticesSig = next;
+    }
+
+    function renderSources(cases) {
+      const map = new Map();
+      for (const c of cases || []) {
+        for (const s of c.sources || []) {
+          if (!s.url) continue;
+          map.set(s.url, s);
+        }
+      }
+      const list = [...map.values()];
+      const next = sig(list.map((s) => [s.url, s.title, s.excerpt, s.kind]));
+      if (next === sourcesSig) return;
+      if (!list.length) {
+        sourcesEl.innerHTML = '<div class="empty">As URLs oficiais aparecem conforme a checagem avança.</div>';
+        sourcesSig = next;
+        return;
+      }
+      sourcesEl.innerHTML = list.map((s) =>
+        `<div class="source"><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a><p>${esc(s.kind)} · ${esc(s.excerpt || "")}</p></div>`
+      ).join("");
+      sourcesSig = next;
+    }
+
+    async function tick() {
+      const res = await fetch("/api/estado");
+      const data = await res.json();
+      window.__stamps = data.stamps || {};
+      chipCity.textContent = data.city || "Ribeirão Preto";
+      chipMode.textContent = data.live_web
+        ? `Web ao vivo · ${data.fact_model}`
+        : "Base oficial · KB municipal";
+      chipMode.className = data.live_web ? "chip live" : "chip on";
+      const phaseKey = `${data.running ? 1 : 0}:${data.phase || "idle"}`;
+      if (phaseKey !== phaseSig) {
+        chipPhase.className = data.running ? "chip live" : "chip";
+        chipPhase.innerHTML = data.running
+          ? '<span class="dot"></span> Ao vivo · ' + esc(data.phase)
+          : "Fase: " + esc(data.phase || "idle");
+        phaseSig = phaseKey;
+      }
+      programaMeta.textContent = `${data.programa?.station || ""} — ${data.programa?.title || ""}`;
+      disclaimer.textContent = data.programa?.disclaimer || "";
+      paintPipeline(data.phase || "idle", !!data.running);
+      renderSegments(data.segments || []);
+      renderCases(data.cases || []);
+      renderNotices(data.notices || []);
+      renderSources(data.cases || []);
+      btnStart.disabled = !!data.running;
+    }
+
+    btnStart.addEventListener("click", async () => {
+      btnStart.disabled = true;
+      lastSeg = 0; lastCase = 0; lastNotice = 0;
+      seenPhases = new Set();
+      casesSig = ""; noticesSig = ""; sourcesSig = ""; phaseSig = "";
+      feed.innerHTML = "";
+      await fetch("/api/demo/iniciar", { method: "POST" });
+      tick();
+    });
+    btnStop.addEventListener("click", async () => {
+      await fetch("/api/demo/parar", { method: "POST" });
+      tick();
+    });
+    btnReset.addEventListener("click", async () => {
+      await fetch("/api/demo/reiniciar", { method: "POST" });
+      lastSeg = 0; lastCase = 0; lastNotice = 0;
+      seenPhases = new Set();
+      casesSig = ""; noticesSig = ""; sourcesSig = ""; phaseSig = "";
+      tick();
+    });
+
+    tick();
+    setInterval(tick, 900);
+  </script>
+</body>
+</html>

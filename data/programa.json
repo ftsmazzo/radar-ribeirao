@@ -1,0 +1,81 @@
+{
+  "title": "Cidade em Debate — Rádio Centro AM (simulação)",
+  "station": "Rádio Centro AM · Ribeirão Preto",
+  "disclaimer": "Roteiro fictício para demonstração. As fontes oficiais usadas na checagem são reais.",
+  "lines": [
+    {
+      "t": 0,
+      "speaker": "Apresentador",
+      "text": "Boa tarde. No Cidade em Debate de hoje a gente abre o microfone para o ouvinte falar dos serviços públicos de Ribeirão Preto."
+    },
+    {
+      "t": 4,
+      "speaker": "Apresentador",
+      "text": "Primeiro recado: João, do Jardim Paulista, mandou mensagem. Ele diz que na cidade não existe atendimento de saúde depois das cinco da tarde."
+    },
+    {
+      "t": 10,
+      "speaker": "Ouvinte",
+      "text": "É isso. Em Ribeirão Preto não tem posto de saúde depois das 17 horas. Se precisar de médico à noite, não tem para onde ir.",
+      "claim": {
+        "quote": "Em Ribeirão Preto não tem posto de saúde depois das 17 horas.",
+        "normalized": "A cidade não oferece atendimento de saúde após as 17h.",
+        "theme": "saude",
+        "kb_ids": ["upa-24h", "ubs-horarios"]
+      }
+    },
+    {
+      "t": 18,
+      "speaker": "Apresentador",
+      "text": "Outra queixa chegou sobre água. A ouvinte Carla afirma que a SAERP não tem telefone 24 horas para vazamento."
+    },
+    {
+      "t": 24,
+      "speaker": "Ouvinte",
+      "text": "Vazou água a madrugada inteira na minha rua e não tem canal 24 horas da SAERP. A prefeitura abandonou quem precisa de água de madrugada.",
+      "claim": {
+        "quote": "Não tem canal 24 horas da SAERP.",
+        "normalized": "A SAERP não oferece telefone ou canal de atendimento 24 horas.",
+        "theme": "agua",
+        "kb_ids": ["saerp-0800"]
+      }
+    },
+    {
+      "t": 32,
+      "speaker": "Apresentador",
+      "text": "No transporte, o comentarista Marcos diz que o passageiro não consegue saber horário do ônibus em tempo real."
+    },
+    {
+      "t": 38,
+      "speaker": "Comentarista",
+      "text": "O ônibus em Ribeirão é no escuro: não existe forma de consultar o horário em tempo real. O cidadão fica no ponto sem informação.",
+      "claim": {
+        "quote": "Não existe forma de consultar o horário do ônibus em tempo real.",
+        "normalized": "Não há ferramenta oficial para consultar horário ou tempo de espera do ônibus em tempo real.",
+        "theme": "transporte",
+        "kb_ids": ["rpmobi-tempo-real", "rpmobi-central"]
+      }
+    },
+    {
+      "t": 46,
+      "speaker": "Apresentador",
+      "text": "E tem um ponto que bate com o site da prefeitura: a coleta seletiva porta a porta ocorre uma vez por semana na área urbana."
+    },
+    {
+      "t": 52,
+      "speaker": "Apresentador",
+      "text": "A coleta seletiva porta a porta em Ribeirão Preto acontece uma vez por semana em toda a área urbana.",
+      "claim": {
+        "quote": "A coleta seletiva porta a porta acontece uma vez por semana em toda a área urbana.",
+        "normalized": "A coleta seletiva domiciliar porta a porta ocorre semanalmente na área urbana de Ribeirão Preto.",
+        "theme": "limpeza",
+        "kb_ids": ["coleta-seletiva"]
+      }
+    },
+    {
+      "t": 60,
+      "speaker": "Apresentador",
+      "text": "Aguarde: a assessoria da prefeitura já pode estar recebendo estes alertas com fonte e nota pronta. Voltamos depois do intervalo."
+    }
+  ]
+}

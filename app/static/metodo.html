@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c0c0c">
+  <title>Método · Radar Municipal</title>
+  <link rel="icon" type="image/png" href="/static/logo-ie-icon.png">
+  <link rel="stylesheet" href="/static/shell.css">
+  <style>
+    .method { max-width: 72ch; }
+    .method h1 {
+      font-family: "Archivo Black", sans-serif;
+      font-weight: 400;
+      letter-spacing: -0.03em;
+      font-size: clamp(1.8rem, 3.4vw, 2.6rem);
+      line-height: 1.05;
+      margin: 0 0 18px;
+    }
+    .method h2 {
+      font-family: "Archivo Black", sans-serif;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--coral);
+      margin: 28px 0 10px;
+    }
+    .method p, .method li { color: var(--ink-soft); }
+    .method ul { padding-left: 1.2rem; }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/">
+      <img src="/static/logo-ie.png" alt="Inteligência Eleitoral">
+      <div>
+        <strong>Radar Municipal</strong>
+        <span>Método</span>
+      </div>
+    </a>
+    <nav class="nav">
+      <a href="/">Sala</a>
+      <a class="current" href="/metodo">Método</a>
+    </nav>
+  </header>
+  <main class="wrap method">
+    <h1>Como o Radar decide sem virar propaganda.</h1>
+    <p>
+      O Radar Municipal escuta menções a serviços da Prefeitura de Ribeirão Preto,
+      cruza uma base oficial curada e fontes https, e devolve carimbo + nota para a assessoria.
+    </p>
+
+    <h2>Régua</h2>
+    <ul>
+      <li>Carimbo fechado só com URL https ou fato da base oficial com link oficial.</li>
+      <li>Não usamos a palavra fake. Mostramos o estado e a fonte.</li>
+      <li>Todo caso gera alerta na Sala de Imprensa — verdadeiro, parcial ou contradito.</li>
+      <li>A nota é sóbria, pronta para adaptar, sem ataque ao veículo.</li>
+    </ul>
+
+    <h2>Fontes desta demo</h2>
+    <ul>
+      <li><a href="https://www.ribeiraopreto.sp.gov.br/portal/" target="_blank" rel="noopener">Portal da Prefeitura</a></li>
+      <li><a href="https://www.ribeiraopreto.sp.gov.br/portal/saude/relacao-telefones-enderecos" target="_blank" rel="noopener">Unidades de saúde — horários</a></li>
+      <li><a href="https://www.ribeiraopreto.sp.gov.br/portal/saerp/postos-de-atendimento" target="_blank" rel="noopener">SAERP — postos e 0800</a></li>
+      <li><a href="https://www.ribeiraopreto.sp.gov.br/portal/rpmobi/" target="_blank" rel="noopener">RP Mobi</a></li>
+      <li><a href="https://www.ribeiraopreto.sp.gov.br/recicla/residuos-domiciliares" target="_blank" rel="noopener">Coleta seletiva</a></li>
+    </ul>
+
+    <h2>O que a demo prova</h2>
+    <p>
+      O programa de rádio é fictício (marcado na tela). A base e as URLs oficiais são reais.
+      Com chave OpenRouter, a checagem também busca na web. Sem chave, usa a base municipal
+      — o fluxo completo continua apresentável.
+    </p>
+  </main>
+</body>
+</html>
