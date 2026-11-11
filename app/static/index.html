@@ -64,6 +64,27 @@
       color: var(--coral);
       margin: 4px 0 0;
     }
+    .card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .card-actions button {
+      min-height: 40px;
+      font-size: 0.68rem;
+      padding: 0 12px;
+    }
+    .card-actions button.ghost {
+      background: transparent;
+      color: var(--ink-soft);
+      border-color: var(--line);
+    }
+    .card-actions button.ghost:hover {
+      background: var(--accent-soft);
+      border-color: var(--mark);
+      color: var(--paper);
+    }
     @media (max-width: 980px) {
       .grid-ops { grid-template-columns: 1fr; }
     }
@@ -154,6 +175,7 @@
     <p class="footer-note" id="disclaimer"></p>
   </main>
 
+  <script src="/static/card.js"></script>
   <script>
     const BAD = new Set(["contradito", "distorcido", "exagerado", "sem_prova"]);
     const WARN = new Set(["nao_e_bem_assim", "sustentado_ressalva"]);
@@ -290,6 +312,10 @@
         <p class="note">${esc(c.summary)}</p>
         <p class="note-label">Nota pronta · validar e enviar</p>
         <pre class="note-ready">${esc(c.note)}</pre>
+        <div class="card-actions">
+          <button type="button" data-card="feed" data-id="${c.id}">Imagem WhatsApp</button>
+          <button type="button" class="ghost" data-card="reels" data-id="${c.id}">Reels / Stories</button>
+        </div>
         <div class="sources">${src || '<div class="empty">Sem URL https neste caso.</div>'}</div>
       </article>`;
     }
@@ -315,6 +341,7 @@
       ).join("");
       casesSig = next;
       lastCase = rows[0]?.id || 0;
+      window.__cases = rows;
     }
 
     function renderNotices(rows) {
@@ -326,7 +353,7 @@
         return;
       }
       noticesEl.innerHTML = rows.map((n) =>
-        `<article class="notice" data-id="${n.id}">
+        `<article class="notice" data-id="${n.id}" data-case="${n.case_id || ""}">
           <div class="notice-head">
             <div>
               <strong>${esc(n.title)}</strong>
@@ -334,6 +361,8 @@
             </div>
             <div class="notice-actions">
               <button type="button" data-copy="${n.id}">Copiar nota</button>
+              <button type="button" class="ghost" data-notice-card="feed" data-case="${n.case_id || ""}">WhatsApp</button>
+              <button type="button" class="ghost" data-notice-card="reels" data-case="${n.case_id || ""}">Reels</button>
             </div>
           </div>
           <p>${esc(n.body)}</p>
@@ -346,17 +375,53 @@
       }
     }
 
-    noticesEl.addEventListener("click", async (ev) => {
-      const btn = ev.target.closest("button[data-copy]");
+    function claimFromStore(id) {
+      const list = window.__cases || [];
+      return list.find((c) => String(c.id) === String(id));
+    }
+
+    casesEl.addEventListener("click", async (ev) => {
+      const btn = ev.target.closest("button[data-card]");
       if (!btn) return;
-      const card = btn.closest(".notice");
-      const text = card?.querySelector("p")?.innerText || "";
+      const claim = claimFromStore(btn.dataset.id);
+      if (!claim || !window.RadarCard) return;
+      btn.disabled = true;
+      const old = btn.textContent;
+      btn.textContent = "Gerando…";
       try {
-        await navigator.clipboard.writeText(text);
-        btn.textContent = "Copiado";
-        setTimeout(() => { btn.textContent = "Copiar nota"; }, 1200);
-      } catch (_) {
-        btn.textContent = "Selecione o texto";
+        await RadarCard.png(claim, btn.dataset.card);
+      } finally {
+        btn.textContent = old;
+        btn.disabled = false;
+      }
+    });
+
+    noticesEl.addEventListener("click", async (ev) => {
+      const copyBtn = ev.target.closest("button[data-copy]");
+      if (copyBtn) {
+        const card = copyBtn.closest(".notice");
+        const text = card?.querySelector("p")?.innerText || "";
+        try {
+          await navigator.clipboard.writeText(text);
+          copyBtn.textContent = "Copiado";
+          setTimeout(() => { copyBtn.textContent = "Copiar nota"; }, 1200);
+        } catch (_) {
+          copyBtn.textContent = "Selecione o texto";
+        }
+        return;
+      }
+      const cardBtn = ev.target.closest("button[data-notice-card]");
+      if (!cardBtn) return;
+      const claim = claimFromStore(cardBtn.dataset.case);
+      if (!claim || !window.RadarCard) return;
+      cardBtn.disabled = true;
+      const old = cardBtn.textContent;
+      cardBtn.textContent = "Gerando…";
+      try {
+        await RadarCard.png(claim, cardBtn.dataset.noticeCard);
+      } finally {
+        cardBtn.textContent = old;
+        cardBtn.disabled = false;
       }
     });
 

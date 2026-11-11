@@ -179,6 +179,11 @@
       min-height: 40px;
       width: 100%;
     }
+    .story .side button.ghost {
+      background: transparent;
+      color: var(--ink-soft);
+      border-color: var(--line);
+    }
     .story .side a.ghost-link {
       font-family: "Archivo Black", sans-serif;
       font-size: 0.66rem;
@@ -279,6 +284,7 @@
     </p>
   </main>
 
+  <script src="/static/card.js"></script>
   <script>
     const feed = document.getElementById("feed");
     const sourcesEl = document.getElementById("sources");
@@ -348,6 +354,8 @@
             ${item.checkable
               ? `<button type="button" data-check="${esc(item.id)}">Checar</button>`
               : `<span class="tag ruido">Sem checagem</span>`}
+            <button type="button" class="ghost" data-wa="${esc(item.id)}" hidden>WhatsApp</button>
+            <button type="button" class="ghost" data-reels="${esc(item.id)}" hidden>Reels</button>
             <a class="ghost-link" href="${esc(item.url)}" target="_blank" rel="noopener">Abrir matéria</a>
           </div>
         </article>
@@ -422,14 +430,50 @@
           body: JSON.stringify({ text })
         });
         const data = await res.json();
+        const claim = {
+          id: item.id,
+          quote: item.title,
+          normalized: item.title,
+          status: data.status,
+          label: data.label,
+          summary: data.summary,
+          note: data.note,
+          theme: data.theme,
+          sources: data.sources || [],
+          portal_name: item.portal_name,
+        };
+        window.__checked = window.__checked || {};
+        window.__checked[id] = claim;
         if (box) {
           const label = data.label || data.status || "";
           box.textContent = `${label}\n\n${data.summary || ""}\n\n${data.note || ""}`;
         }
+        const story = btn.closest(".story");
+        story?.querySelector('[data-wa]')?.removeAttribute("hidden");
+        story?.querySelector('[data-reels]')?.removeAttribute("hidden");
         btn.textContent = "Checado";
       } catch (err) {
         if (box) box.textContent = "Falha na checagem: " + err;
         btn.textContent = "Tentar de novo";
+        btn.disabled = false;
+      }
+    });
+
+    feed.addEventListener("click", async (ev) => {
+      const wa = ev.target.closest("button[data-wa]");
+      const reels = ev.target.closest("button[data-reels]");
+      const btn = wa || reels;
+      if (!btn || !window.RadarCard) return;
+      const id = btn.dataset.wa || btn.dataset.reels;
+      const claim = (window.__checked || {})[id];
+      if (!claim) return;
+      btn.disabled = true;
+      const old = btn.textContent;
+      btn.textContent = "Gerando…";
+      try {
+        await RadarCard.png(claim, wa ? "feed" : "reels");
+      } finally {
+        btn.textContent = old;
         btn.disabled = false;
       }
     });

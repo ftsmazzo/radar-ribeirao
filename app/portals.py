@@ -112,10 +112,11 @@ NOISE_MARKERS = (
 def classify(title: str, summary: str) -> dict:
     blob = _fold(f"{title} {summary}")
     city = any(mark in blob for mark in CITY_MARKERS)
-    service = any(mark in blob for mark in SERVICE_MARKERS)
+    local_org = any(mark in blob for mark in LOCAL_ORG_MARKERS)
+    service = any(mark in blob for mark in SERVICE_MARKERS) or local_org
     noise = any(mark in blob for mark in NOISE_MARKERS) and not (city and service)
 
-    if city and service:
+    if (city and service) or local_org:
         tag = "prefeitura"
         label = "Fala da prefeitura / serviço"
         priority = "alta"
