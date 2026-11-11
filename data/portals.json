@@ -1,0 +1,79 @@
+{
+  "portals": [
+    {
+      "id": "g1",
+      "name": "G1 Ribeirão e Franca",
+      "group": "grandes",
+      "site": "https://g1.globo.com/sp/ribeirao-preto-franca",
+      "feed": "https://g1.globo.com/dynamo/sp/ribeirao-preto-franca/rss2.xml",
+      "logo": "/static/portals/g1.png",
+      "enabled": true
+    },
+    {
+      "id": "acidade",
+      "name": "acidade on",
+      "group": "grandes",
+      "site": "https://www.acidadeon.com/ribeiraopreto/",
+      "feed": "https://www.acidadeon.com/ribeiraopreto/rss",
+      "logo": "/static/portals/acidade.png",
+      "enabled": true
+    },
+    {
+      "id": "cbn",
+      "name": "CBN Ribeirão",
+      "group": "grandes",
+      "site": "https://cbnribeirao.com.br",
+      "feed": "https://www.cbnribeirao.com.br/feed",
+      "logo": "/static/portals/cbn.png",
+      "enabled": true
+    },
+    {
+      "id": "thmais",
+      "name": "Portal TH+",
+      "group": "grandes",
+      "site": "https://thmais.com.br/ribeirao-preto",
+      "feed": "",
+      "logo": "/static/portals/thmais.png",
+      "enabled": false,
+      "note": "Sem RSS público estável (403)"
+    },
+    {
+      "id": "record",
+      "name": "Record Interior SP",
+      "group": "grandes",
+      "site": "https://record.r7.com/record-emissoras/sudeste/record-interior-sp",
+      "feed": "",
+      "logo": "/static/portals/record.png",
+      "enabled": false,
+      "note": "Sem feed RSS simples"
+    },
+    {
+      "id": "tribuna",
+      "name": "Tribuna Ribeirão",
+      "group": "tradicional",
+      "site": "https://www.tribunaribeirao.com.br",
+      "feed": "https://www.tribunaribeirao.com.br/feed",
+      "logo": "/static/portals/tribuna.png",
+      "enabled": true
+    },
+    {
+      "id": "revide",
+      "name": "Revide",
+      "group": "tradicional",
+      "site": "https://www.revide.com.br",
+      "feed": "",
+      "logo": "/static/portals/revide.png",
+      "enabled": false,
+      "note": "Sem /feed público"
+    },
+    {
+      "id": "rpsp",
+      "name": "Portal RPSP",
+      "group": "independentes",
+      "site": "https://portalrpsp.com.br",
+      "feed": "https://portalrpsp.com.br/feed",
+      "logo": "/static/portals/rpsp.png",
+      "enabled": true
+    }
+  ]
+}

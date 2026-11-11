@@ -1,16 +1,16 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from app.db import init_db
 from app.engine import load_programa, reset_demo, start_demo, status_snapshot, stop_demo
-
 from app.factcheck import verify_claim
 from app.kb import load_kb, search_kb
+from app.portals import portals_snapshot
 from app.settings import settings
 
 STATIC = Path(__file__).parent / "static"
@@ -93,9 +93,22 @@ def checar_manual(body: ManualBody) -> dict:
     return {"quote": text, **verdict}
 
 
+@app.get("/api/portais")
+def portais(
+    force: bool = Query(default=False),
+    tag: str = Query(default=""),
+) -> dict:
+    return portals_snapshot(force=force, tag=tag)
+
+
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(STATIC / "index.html")
+
+
+@app.get("/portais")
+def portais_page() -> FileResponse:
+    return FileResponse(STATIC / "portais.html")
 
 
 @app.get("/metodo")

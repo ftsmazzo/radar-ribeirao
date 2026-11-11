@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c0c0c">
+  <title>Portais · Radar Municipal</title>
+  <link rel="icon" type="image/png" href="/static/logo-ie-icon.png">
+  <link rel="stylesheet" href="/static/shell.css">
+  <style>
+    .hero h1 { max-width: 16ch; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin: 0 0 22px;
+    }
+    .stat {
+      border: 1px solid var(--line);
+      background: var(--plate);
+      padding: 14px 12px;
+      min-height: 88px;
+    }
+    .stat strong {
+      display: block;
+      font-family: "Archivo Black", sans-serif;
+      font-size: 1.5rem;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .stat span {
+      font-family: "Archivo Black", sans-serif;
+      font-size: 0.66rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .stat.hot { border-color: var(--coral); background: var(--coral-soft); }
+    .stat.ok { border-color: var(--mark); background: var(--accent-soft); }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin: 0 0 18px;
+    }
+    .toolbar .filters { display: flex; flex-wrap: wrap; gap: 8px; }
+    .filter-btn {
+      min-height: 40px;
+      padding: 0 12px;
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--ink-soft);
+    }
+    .filter-btn.on {
+      background: var(--coral);
+      border-color: var(--coral);
+      color: var(--night);
+    }
+    .sources-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    .source-card {
+      border: 1px solid var(--line);
+      background: var(--plate);
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      gap: 12px;
+      align-items: center;
+      min-height: 92px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+    .source-card:hover {
+      border-color: var(--mark);
+      transform: translateY(-2px);
+    }
+    .source-card.off { opacity: 0.45; }
+    .source-card img {
+      width: 44px;
+      height: 44px;
+      object-fit: contain;
+      background: #0a0a0a;
+      border: 1px solid var(--line);
+      padding: 4px;
+    }
+    .source-card strong {
+      display: block;
+      font-family: "Archivo Black", sans-serif;
+      font-size: 0.78rem;
+      letter-spacing: 0.02em;
+      line-height: 1.2;
+    }
+    .source-card em {
+      display: block;
+      margin-top: 6px;
+      font-style: normal;
+      font-family: "Archivo Black", sans-serif;
+      font-size: 0.62rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .source-card .live { color: var(--mark); }
+    .source-card .wait { color: var(--warn); }
+    .feed-grid {
+      display: grid;
+      gap: 12px;
+    }
+    .story {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(22,22,22,0.98), rgba(16,16,16,0.98));
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 52px 1fr auto;
+      gap: 14px;
+      align-items: start;
+      animation: in 0.35s ease;
+    }
+    .story img.logo {
+      width: 52px;
+      height: 52px;
+      object-fit: contain;
+      background: #0a0a0a;
+      border: 1px solid var(--line);
+      padding: 5px;
+    }
+    .story h3 {
+      margin: 0 0 8px;
+      font-family: "Archivo Black", sans-serif;
+      font-weight: 400;
+      font-size: 1.05rem;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      max-width: 48ch;
+    }
+    .story h3 a { text-decoration: none; }
+    .story h3 a:hover { color: var(--mark); }
+    .story p {
+      margin: 0;
+      color: var(--ink-soft);
+      max-width: 68ch;
+    }
+    .story .meta {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 8px;
+      border: 1px solid var(--line);
+      font-family: "Archivo Black", sans-serif;
+      font-size: 0.62rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .tag.prefeitura { border-color: var(--coral); color: var(--coral); background: var(--coral-soft); }
+    .tag.cidade { border-color: var(--mark); color: var(--mark); background: var(--accent-soft); }
+    .tag.geral { color: var(--aberto); border-color: var(--aberto); }
+    .tag.ruido { color: var(--muted); }
+    .story .side {
+      display: grid;
+      gap: 8px;
+      justify-items: end;
+      min-width: 120px;
+    }
+    .story .side button {
+      min-height: 40px;
+      width: 100%;
+    }
+    .story .side a.ghost-link {
+      font-family: "Archivo Black", sans-serif;
+      font-size: 0.66rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-decoration: none;
+    }
+    .story .side a.ghost-link:hover { color: var(--mark); }
+    .check-box {
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      background: rgba(0,0,0,0.28);
+      padding: 12px;
+      white-space: pre-wrap;
+      color: var(--ink-soft);
+      font-size: 0.92rem;
+    }
+    .updated {
+      color: var(--muted);
+      font-family: "Archivo Black", sans-serif;
+      font-size: 0.66rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    @media (max-width: 980px) {
+      .stats, .sources-row { grid-template-columns: 1fr 1fr; }
+      .story { grid-template-columns: 44px 1fr; }
+      .story .side { grid-column: 1 / -1; justify-items: stretch; min-width: 0; }
+    }
+    @media (max-width: 640px) {
+      .stats, .sources-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/">
+      <img src="/static/logo-ie.png" alt="Inteligência Eleitoral">
+      <div>
+        <strong>Radar Municipal</strong>
+        <span>Portais locais</span>
+      </div>
+    </a>
+    <nav class="nav">
+      <a href="/">Sala</a>
+      <a class="current" href="/portais">Portais</a>
+      <a href="/metodo">Método</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <div>
+        <h1>O que a imprensa local está dizendo agora.</h1>
+        <p>
+          Feeds reais dos portais de Ribeirão Preto. O Radar marca o que fala da cidade
+          e do serviço público — e deixa o ruído de fora da fila de checagem.
+        </p>
+      </div>
+      <div class="hero-side">
+        <div class="chip on" id="chip-city">Ribeirão Preto</div>
+        <div class="chip" id="chip-updated">Atualizando…</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
+          <button id="btn-refresh" type="button">Atualizar feeds</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="stats" aria-label="Resumo">
+      <div class="stat"><strong id="n-total">0</strong><span>Manchetes</span></div>
+      <div class="stat hot"><strong id="n-pref">0</strong><span>Prefeitura / serviço</span></div>
+      <div class="stat ok"><strong id="n-city">0</strong><span>Fala da cidade</span></div>
+      <div class="stat"><strong id="n-geral">0</strong><span>Geral / região</span></div>
+      <div class="stat"><strong id="n-ruido">0</strong><span>Fora do escopo</span></div>
+    </section>
+
+    <section>
+      <h2 class="updated" style="margin:0 0 12px">Fontes monitoradas</h2>
+      <div class="sources-row" id="sources"></div>
+    </section>
+
+    <section class="toolbar">
+      <div class="filters" id="filters">
+        <button class="filter-btn on" data-tag="" type="button">Todos</button>
+        <button class="filter-btn" data-tag="prefeitura" type="button">Prefeitura</button>
+        <button class="filter-btn" data-tag="cidade" type="button">Cidade</button>
+        <button class="filter-btn" data-tag="geral" type="button">Geral</button>
+        <button class="filter-btn" data-tag="ruido" type="button">Ruído</button>
+      </div>
+      <span class="updated" id="meta-line"></span>
+    </section>
+
+    <section class="feed-grid" id="feed"></section>
+    <p class="footer-note">
+      TH+, Record e Revide aparecem na grade de fontes, mas ainda sem RSS estável.
+      Nesta demo a checagem de uma manchete usa a mesma régua da Sala.
+    </p>
+  </main>
+
+  <script>
+    const feed = document.getElementById("feed");
+    const sourcesEl = document.getElementById("sources");
+    const chipUpdated = document.getElementById("chip-updated");
+    const metaLine = document.getElementById("meta-line");
+    const btnRefresh = document.getElementById("btn-refresh");
+    let currentTag = "";
+    let busy = false;
+
+    function esc(s) {
+      return String(s || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function when(iso) {
+      if (!iso) return "";
+      try {
+        const d = new Date(iso);
+        return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+      } catch (_) {
+        return iso.slice(0, 16);
+      }
+    }
+
+    function renderSources(rows) {
+      const groupLabel = {
+        grandes: "Grandes redes",
+        tradicional: "Tradicional",
+        independentes: "Independentes"
+      };
+      sourcesEl.innerHTML = (rows || []).map((s) => `
+        <a class="source-card ${s.enabled ? "" : "off"}" href="${esc(s.site)}" target="_blank" rel="noopener">
+          <img src="${esc(s.logo)}" alt="${esc(s.name)}" width="44" height="44" loading="lazy">
+          <div>
+            <strong>${esc(s.name)}</strong>
+            <em class="${s.enabled ? "live" : "wait"}">
+              ${s.enabled ? "RSS ativo" : (s.note || "Sem feed")}
+              · ${esc(groupLabel[s.group] || s.group || "")}
+            </em>
+          </div>
+        </a>
+      `).join("");
+    }
+
+    function renderItems(items) {
+      if (!items.length) {
+        feed.innerHTML = '<div class="empty">Nenhuma manchete neste filtro agora.</div>';
+        return;
+      }
+      feed.innerHTML = items.map((item) => `
+        <article class="story" data-id="${esc(item.id)}">
+          <img class="logo" src="${esc(item.portal_logo)}" alt="${esc(item.portal_name)}" width="52" height="52" loading="lazy">
+          <div>
+            <h3><a href="${esc(item.url)}" target="_blank" rel="noopener">${esc(item.title)}</a></h3>
+            <p>${esc(item.summary || "Sem resumo no feed.")}</p>
+            <div class="meta">
+              <span class="tag ${esc(item.tag)}">${esc(item.label)}</span>
+              <span class="tag">${esc(item.portal_name)}</span>
+              <span class="updated">${esc(when(item.published_at))}</span>
+            </div>
+            <div class="check-box" hidden id="out-${esc(item.id)}"></div>
+          </div>
+          <div class="side">
+            ${item.checkable
+              ? `<button type="button" data-check="${esc(item.id)}">Checar</button>`
+              : `<span class="tag ruido">Sem checagem</span>`}
+            <a class="ghost-link" href="${esc(item.url)}" target="_blank" rel="noopener">Abrir matéria</a>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    async function load(force = false) {
+      if (busy) return;
+      busy = true;
+      btnRefresh.disabled = true;
+      chipUpdated.textContent = "Atualizando…";
+      try {
+        const qs = new URLSearchParams();
+        if (force) qs.set("force", "1");
+        if (currentTag) qs.set("tag", currentTag);
+        const res = await fetch("/api/portais?" + qs.toString());
+        const data = await res.json();
+        const c = data.counts || {};
+        document.getElementById("n-total").textContent = c.total || 0;
+        document.getElementById("n-pref").textContent = c.prefeitura || 0;
+        document.getElementById("n-city").textContent = c.cidade || 0;
+        document.getElementById("n-geral").textContent = c.geral || 0;
+        document.getElementById("n-ruido").textContent = c.ruido || 0;
+        renderSources(data.sources || []);
+        renderItems(data.items || []);
+        const stamp = when(data.fetched_at) || "agora";
+        chipUpdated.textContent = `Atualizado · ${stamp}`;
+        chipUpdated.className = "chip on";
+        metaLine.textContent = `${data.counts?.ativos || 0} feeds ativos · filtro: ${data.filter || "todos"}`;
+        window.__stories = Object.fromEntries((data.items || []).map((i) => [i.id, i]));
+        if ((data.errors || []).length) {
+          metaLine.textContent += ` · ${data.errors.length} feed(s) com falha`;
+        }
+      } catch (err) {
+        chipUpdated.textContent = "Falha ao ler feeds";
+        chipUpdated.className = "chip warn";
+        feed.innerHTML = `<div class="empty">Não foi possível carregar os portais. ${esc(err)}</div>`;
+      } finally {
+        busy = false;
+        btnRefresh.disabled = false;
+      }
+    }
+
+    document.getElementById("filters").addEventListener("click", (ev) => {
+      const btn = ev.target.closest("button[data-tag]");
+      if (!btn) return;
+      currentTag = btn.dataset.tag || "";
+      document.querySelectorAll(".filter-btn").forEach((el) => el.classList.toggle("on", el === btn));
+      load(false);
+    });
+
+    btnRefresh.addEventListener("click", () => load(true));
+
+    feed.addEventListener("click", async (ev) => {
+      const btn = ev.target.closest("button[data-check]");
+      if (!btn) return;
+      const id = btn.dataset.check;
+      const item = (window.__stories || {})[id];
+      if (!item) return;
+      const box = document.getElementById("out-" + id);
+      btn.disabled = true;
+      btn.textContent = "Checando…";
+      if (box) {
+        box.hidden = false;
+        box.textContent = "Cruzando manchete com a base oficial…";
+      }
+      try {
+        const text = `${item.title}. ${item.summary || ""}`.trim();
+        const res = await fetch("/api/checar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        if (box) {
+          const label = data.label || data.status || "";
+          box.textContent = `${label}\n\n${data.summary || ""}\n\n${data.note || ""}`;
+        }
+        btn.textContent = "Checado";
+      } catch (err) {
+        if (box) box.textContent = "Falha na checagem: " + err;
+        btn.textContent = "Tentar de novo";
+        btn.disabled = false;
+      }
+    });
+
+    load(true);
+  </script>
+</body>
+</html>

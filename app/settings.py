@@ -3,6 +3,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
+# reexport for other modules
+__all__ = ["ROOT", "settings"]
+
 try:
     from dotenv import load_dotenv
 
