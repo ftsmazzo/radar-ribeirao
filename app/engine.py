@@ -1,4 +1,8 @@
-"""Orquestra a demo ao vivo: programa → casos → nota → notificação."""
+"""Orquestra a demo ao vivo: programa → casos → nota → notificação.
+
+A demo é reexecutável: cada Iniciar/Recomeçar cancela a geração anterior
+e limpa a mesa antes de gravar de novo.
+"""
 
 from __future__ import annotations
 
@@ -16,11 +20,17 @@ from app.settings import settings
 _lock = threading.Lock()
 _thread: threading.Thread | None = None
 _stop = threading.Event()
+_run_id = 0
 
 
 def load_programa() -> dict:
     path: Path = settings.programa_path
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _speed() -> float:
+    """1.0 = tempo do roteiro. >1 acelera a apresentação."""
+    return max(0.4, min(3.0, float(settings.demo_speed or 1.0)))
 
 
 def status_snapshot() -> dict:
@@ -35,6 +45,7 @@ def status_snapshot() -> dict:
             "running": bool(state.running) if state else False,
             "phase": state.phase if state else "idle",
             "last_error": state.last_error if state else "",
+            "run_id": _run_id,
             "city": settings.city_name,
             "live_web": live_web,
             "fact_model": settings.fact_model if live_web else "base-oficial-kb",
@@ -58,8 +69,20 @@ def status_snapshot() -> dict:
         }
 
 
-def reset_demo() -> None:
-    stop_demo(wait=True)
+def _active(run_id: int) -> bool:
+    return (not _stop.is_set()) and run_id == _run_id
+
+
+def reset_demo() -> dict:
+    """Para qualquer geração, limpa banco e volta a mesa para idle."""
+    global _run_id, _thread
+    with _lock:
+        _run_id += 1
+        cancelled = _run_id
+        _stop.set()
+        old = _thread
+    if old and old.is_alive() and old is not threading.current_thread():
+        old.join(timeout=1.5)
     with session() as db:
         db.execute(delete(Notice))
         db.execute(delete(Case))
@@ -71,26 +94,47 @@ def reset_demo() -> None:
             state.last_error = ""
             state.updated_at = utcnow()
         db.commit()
-
-
-def start_demo() -> None:
-    global _thread
     with _lock:
-        if _thread and _thread.is_alive():
-            return
+        if _thread is old:
+            _thread = None
+    return {"ok": True, "run_id": cancelled, "cleared": True}
+
+
+def start_demo() -> dict:
+    """Sempre recomeça do zero: cancela anterior, limpa e sobe nova geração."""
+    global _thread, _run_id
+    reset_demo()
+    with _lock:
+        _run_id += 1
+        run_id = _run_id
         _stop.clear()
-        _thread = threading.Thread(target=_run_demo, name="demo-programa", daemon=True)
+        _thread = threading.Thread(
+            target=_run_demo, args=(run_id,), name=f"demo-{run_id}", daemon=True
+        )
         _thread.start()
+    return {"ok": True, "run_id": run_id}
 
 
-def stop_demo(wait: bool = False) -> None:
-    _stop.set()
-    thread = _thread
-    if wait and thread and thread.is_alive():
-        thread.join(timeout=2)
+def stop_demo(wait: bool = False) -> dict:
+    global _run_id
+    with _lock:
+        _run_id += 1
+        _stop.set()
+        old = _thread
+    if wait and old and old.is_alive():
+        old.join(timeout=1.5)
+    _set_phase("parado", running=False)
+    return {"ok": True}
 
 
-def _set_phase(phase: str, running: bool | None = None, error: str | None = None) -> None:
+def _set_phase(
+    phase: str,
+    running: bool | None = None,
+    error: str | None = None,
+    run_id: int | None = None,
+) -> None:
+    if run_id is not None and run_id != _run_id:
+        return
     with session() as db:
         state = db.get(RunState, 1)
         if state is None:
@@ -104,39 +148,47 @@ def _set_phase(phase: str, running: bool | None = None, error: str | None = None
         db.commit()
 
 
-def _run_demo() -> None:
+def _run_demo(run_id: int) -> None:
     programa = load_programa()
     lines = programa.get("lines") or []
-    _set_phase("ouvindo", running=True, error="")
+    speed = _speed()
+    _set_phase("ouvindo", running=True, error="", run_id=run_id)
     started = time.time()
     try:
         for item in lines:
-            if _stop.is_set():
+            if not _active(run_id):
                 break
-            target = float(item.get("t") or 0)
-            while not _stop.is_set() and time.time() - started < target:
-                time.sleep(0.15)
-            if _stop.is_set():
+            target = float(item.get("t") or 0) / speed
+            while _active(run_id) and time.time() - started < target:
+                time.sleep(0.12)
+            if not _active(run_id):
                 break
             speaker = str(item.get("speaker") or "Programa")
             text = str(item.get("text") or "").strip()
             if not text:
                 continue
             with session() as db:
+                if not _active(run_id):
+                    break
                 db.add(Segment(speaker=speaker, text=text))
                 db.commit()
             claim = item.get("claim")
             if isinstance(claim, dict):
-                _process_claim(claim)
-        if not _stop.is_set():
-            _set_phase("concluido", running=False)
-        else:
-            _set_phase("parado", running=False)
+                _process_claim(claim, run_id)
+                if not _active(run_id):
+                    break
+        if _active(run_id):
+            _set_phase("concluido", running=False, run_id=run_id)
+        elif run_id == _run_id:
+            _set_phase("parado", running=False, run_id=run_id)
     except Exception as exc:
-        _set_phase("erro", running=False, error=str(exc))
+        if run_id == _run_id:
+            _set_phase("erro", running=False, error=str(exc), run_id=run_id)
 
 
-def _process_claim(claim: dict) -> None:
+def _process_claim(claim: dict, run_id: int) -> None:
+    if not _active(run_id):
+        return
     quote = str(claim.get("quote") or "").strip()
     normalized = str(claim.get("normalized") or quote).strip()
     theme = str(claim.get("theme") or "").strip()
@@ -144,8 +196,10 @@ def _process_claim(claim: dict) -> None:
     if len(quote) < 8:
         return
 
-    _set_phase("detectou")
+    _set_phase("detectou", run_id=run_id)
     with session() as db:
+        if not _active(run_id):
+            return
         row = Case(
             quote=quote[:500],
             normalized=normalized[:500],
@@ -161,7 +215,11 @@ def _process_claim(claim: dict) -> None:
         db.commit()
         case_id = row.id
 
-    _set_phase("checando")
+    if not _active(run_id):
+        return
+    _set_phase("checando", run_id=run_id)
+    # Offline KB é o caminho estável da apresentação; web ao vivo só se a chave existir
+    # e a geração continuar ativa depois.
     verdict = verify_claim(
         quote,
         normalized,
@@ -169,12 +227,17 @@ def _process_claim(claim: dict) -> None:
         kb_ids=kb_ids,
         use_live_web=bool(settings.openrouter_key),
     )
+    if not _active(run_id):
+        return
+
     pipeline = list(verdict.get("pipeline") or [])
     pipeline.insert(0, {"step": "detectou", "ok": True, "detail": "afirmação extraída do programa"})
     pipeline.append({"step": "nota", "ok": True, "detail": "nota de crise gerada"})
 
-    _set_phase("notificando")
+    _set_phase("notificando", run_id=run_id)
     with session() as db:
+        if not _active(run_id):
+            return
         row = db.get(Case, case_id)
         if row is None:
             return
@@ -213,4 +276,5 @@ def _process_claim(claim: dict) -> None:
         )
         row.pipeline_json = json.dumps(pipeline, ensure_ascii=False)
         db.commit()
-    _set_phase("ouvindo")
+    if _active(run_id):
+        _set_phase("ouvindo", run_id=run_id)

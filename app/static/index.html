@@ -37,10 +37,13 @@
         <div class="chip" id="chip-mode">Modo: —</div>
         <div class="chip" id="chip-phase">Fase: idle</div>
         <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
-          <button id="btn-start" type="button">Iniciar programa</button>
+          <button id="btn-start" type="button">Recomeçar demo</button>
           <button id="btn-stop" class="ghost" type="button">Parar</button>
           <button id="btn-reset" class="ghost" type="button">Limpar mesa</button>
         </div>
+        <p class="footer-note" style="margin:8px 0 0; max-width:36ch;">
+          Pode repetir quantas vezes quiser: o botão zera a mesa e roda o programa de novo.
+        </p>
       </div>
     </section>
 
@@ -281,16 +284,28 @@
       renderCases(data.cases || []);
       renderNotices(data.notices || []);
       renderSources(data.cases || []);
-      btnStart.disabled = !!data.running;
+      btnStart.disabled = false;
+      btnStart.textContent = data.running || (data.cases || []).length
+        ? "Recomeçar demo"
+        : "Iniciar demo";
+    }
+
+    function wipeUi() {
+      lastSeg = 0; lastCase = 0; lastNotice = 0;
+      seenPhases = new Set();
+      casesSig = ""; noticesSig = ""; sourcesSig = ""; phaseSig = "";
+      feed.innerHTML = '<div class="empty">Aguardando o início do programa…</div>';
+      casesEl.innerHTML = '<div class="empty">Nenhum caso ainda. As afirmações entram aqui.</div>';
+      noticesEl.innerHTML = '<div class="empty">A sala de imprensa ainda está vazia.</div>';
+      sourcesEl.innerHTML = '<div class="empty">As URLs oficiais aparecem conforme a checagem avança.</div>';
+      document.querySelectorAll(".step").forEach((el) => el.classList.remove("active", "done"));
     }
 
     btnStart.addEventListener("click", async () => {
       btnStart.disabled = true;
-      lastSeg = 0; lastCase = 0; lastNotice = 0;
-      seenPhases = new Set();
-      casesSig = ""; noticesSig = ""; sourcesSig = ""; phaseSig = "";
-      feed.innerHTML = "";
+      wipeUi();
       await fetch("/api/demo/iniciar", { method: "POST" });
+      btnStart.disabled = false;
       tick();
     });
     btnStop.addEventListener("click", async () => {
@@ -299,9 +314,7 @@
     });
     btnReset.addEventListener("click", async () => {
       await fetch("/api/demo/reiniciar", { method: "POST" });
-      lastSeg = 0; lastCase = 0; lastNotice = 0;
-      seenPhases = new Set();
-      casesSig = ""; noticesSig = ""; sourcesSig = ""; phaseSig = "";
+      wipeUi();
       tick();
     });
 

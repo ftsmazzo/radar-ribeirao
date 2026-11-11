@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from app.db import init_db
 from app.engine import load_programa, reset_demo, start_demo, status_snapshot, stop_demo
+
 from app.factcheck import verify_claim
 from app.kb import load_kb, search_kb
 from app.settings import settings
@@ -59,21 +60,19 @@ def programa() -> dict:
 
 @app.post("/api/demo/iniciar")
 def demo_iniciar() -> dict:
-    reset_demo()
-    start_demo()
-    return {"ok": True}
+    """Limpa a mesa e roda o programa do zero. Pode repetir à vontade."""
+    return start_demo()
 
 
 @app.post("/api/demo/parar")
 def demo_parar() -> dict:
-    stop_demo()
-    return {"ok": True}
+    return stop_demo(wait=False)
 
 
 @app.post("/api/demo/reiniciar")
 def demo_reiniciar() -> dict:
-    reset_demo()
-    return {"ok": True}
+    """Só limpa, sem iniciar de novo."""
+    return reset_demo()
 
 
 class ManualBody(BaseModel):

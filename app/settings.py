@@ -49,6 +49,15 @@ class Settings:
         return os.environ.get("DEMO_MODE", "1").strip() not in {"0", "false", "False"}
 
     @property
+    def demo_speed(self) -> float:
+        # 1.0 = tempo do roteiro; 1.4 deixa a apresentação um pouco mais ágil.
+        raw = os.environ.get("DEMO_SPEED", "1.35").strip() or "1.35"
+        try:
+            return float(raw)
+        except ValueError:
+            return 1.35
+
+    @property
     def referer(self) -> str:
         return os.environ.get(
             "OPENROUTER_HTTP_REFERER",
